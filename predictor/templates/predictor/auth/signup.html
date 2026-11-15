@@ -1,0 +1,88 @@
+{% extends 'predictor/auth/auth_base.html' %}
+{% load static %}
+{% block title %}Request an account{% endblock %}
+{% block card %}
+<h1>Request your account</h1>
+<p class="auth-sub" data-step-sub>Start tracking food waste in a few minutes.</p>
+
+<ol class="steps" aria-label="Sign-up progress">
+    <li class="is-current" data-dot="1"><span>1</span>Account</li>
+    <li data-dot="2"><span>2</span>Your team</li>
+</ol>
+
+<form method="post" class="auth-form" novalidate data-loading-form data-busy-text="Sending request…" data-signup data-wizard
+      data-error-step="{% if form.full_name.errors or form.email.errors or form.password1.errors or form.password2.errors %}1{% elif form.errors %}2{% else %}1{% endif %}">
+    {% csrf_token %}
+
+    <!-- Step 1 -->
+    <section data-step="1" class="step">
+        <div class="field">
+            <label for="{{ form.full_name.id_for_label }}">Full name</label>
+            <div class="input-wrap">{{ form.full_name }}<span class="tick" aria-hidden="true"><i data-lucide="check"></i></span></div>
+            <p class="field-error" data-msg-for="full_name" hidden></p>
+            {% for e in form.full_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.email.id_for_label }}">Email</label>
+            <div class="input-wrap">{{ form.email }}<span class="tick" aria-hidden="true"><i data-lucide="check"></i></span></div>
+            <p class="field-error" data-msg-for="email" hidden></p>
+            {% for e in form.email.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <div class="label-row">
+                <label for="{{ form.password1.id_for_label }}">Password</label>
+                <button type="button" class="link-btn" data-suggest><i data-lucide="wand-sparkles"></i>Suggest a strong one</button>
+            </div>
+            <div class="input-wrap">
+                {{ form.password1 }}
+                <button type="button" class="reveal" data-reveal aria-label="Show password"><i data-lucide="eye"></i></button>
+            </div>
+            <p class="caps-warn" data-caps hidden><i data-lucide="arrow-big-up"></i>Caps Lock is on</p>
+            <div class="strength" data-strength aria-live="polite"><span class="strength-bar"><i></i><i></i><i></i><i></i></span><small data-strength-text>Use 8+ characters with letters and numbers</small></div>
+            <ul class="rules" aria-label="Password requirements">
+                <li data-rule="len"><i data-lucide="circle"></i>At least 8 characters</li>
+                <li data-rule="letter"><i data-lucide="circle"></i>Contains a letter</li>
+                <li data-rule="number"><i data-lucide="circle"></i>Contains a number</li>
+                <li data-rule="match"><i data-lucide="circle"></i>Both passwords match</li>
+            </ul>
+            <p class="suggest-note" data-suggest-note hidden><i data-lucide="key-round"></i><span>Filled in for you. Let your browser save it, or <button type="button" class="link-btn" data-copy>copy it</button>.</span></p>
+            {% for e in form.password1.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+            <div class="input-wrap">
+                {{ form.password2 }}
+                <button type="button" class="reveal" data-reveal aria-label="Show password"><i data-lucide="eye"></i></button>
+            </div>
+            <p class="field-error" data-match-msg hidden>Passwords do not match yet.</p>
+            {% for e in form.password2.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <button type="button" class="btn btn-primary btn-block" data-next disabled><span>Continue</span><i data-lucide="arrow-right"></i></button>
+    </section>
+
+    <!-- Step 2 -->
+    <section data-step="2" class="step" hidden>
+        <p class="summary-chip"><i data-lucide="user-round"></i><span data-summary>Your account</span></p>
+
+        <div class="note-box"><i data-lucide="users-round"></i><span>You'll join {% if restaurant.is_configured %}<strong>{{ restaurant.name }}</strong>{% else %}the restaurant{% endif %} as <strong>Staff</strong>. For security, the owner reviews every new account before it can sign in, and decides if you should be a Manager. You'll get access as soon as it's approved.</span></div>
+        <div class="field">
+            <label for="{{ form.phone.id_for_label }}">Phone <span class="optional">optional</span></label>
+            {{ form.phone }}
+            {% for e in form.phone.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+
+        <label class="check terms" for="{{ form.accept_terms.id_for_label }}">{{ form.accept_terms }}<span>{{ form.accept_terms.label }}</span></label>
+        {% for e in form.accept_terms.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        {% if form.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+
+        <div class="wizard-actions">
+            <button type="button" class="btn btn-ghost" data-back><i data-lucide="arrow-left"></i>Back</button>
+            <button type="submit" class="btn btn-primary" data-submit><span>Request account</span><i data-lucide="check"></i></button>
+        </div>
+    </section>
+</form>
+
+<p class="auth-switch">Already have an account? <a href="{% url 'login' %}">Sign in</a></p>
+{% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'predictor/js/signup.js' %}"></script>{% endblock %}

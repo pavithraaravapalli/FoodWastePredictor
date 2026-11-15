@@ -1,0 +1,12 @@
+<div class="kpi">
+    <span class="kpi-label">{{ label }}</span>
+    <span class="kpi-value">{{ prefix }}{{ value }}<small>{{ suffix }}</small></span>
+    {% if delta %}
+        <span class="kpi-delta {{ delta_tone }}">
+            <i data-lucide="{% if delta.dir == 'up' %}arrow-up-right{% elif delta.dir == 'down' %}arrow-down-right{% else %}minus{% endif %}"></i>
+            {{ delta.value }}{{ delta.unit }} vs previous period
+        </span>
+    {% else %}
+        <span class="kpi-delta muted">{{ hint }}</span>
+    {% endif %}
+</div>

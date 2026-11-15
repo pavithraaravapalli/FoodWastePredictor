@@ -1,0 +1,21 @@
+{% if pending_count or team or recent_activity %}
+<div class="grid-two">
+    {% if pending_preview is not None %}
+    <section class="card">
+        <div class="card-head"><h2>Pending approvals {% if pending_count %}<span class="pill pill-info">{{ pending_count }}</span>{% endif %}</h2><a href="{% url 'approvals' %}" class="link-sm">Open</a></div>
+        {% if pending_preview %}
+        <ul class="list-rows">{% for r in pending_preview %}<li><span><strong>{{ r.food_item.name }}</strong> · {{ r.date|date:"d-m-Y" }}<small class="muted-text" style="display:block">by {% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}unknown{% endif %}</small></span><span class="pill pill-info">Submitted</span></li>{% endfor %}</ul>
+        {% else %}<p class="muted-text">Nothing is waiting for review.</p>{% endif %}
+    </section>
+    {% endif %}
+    {% if team %}
+    <section class="card">
+        <div class="card-head"><h2>Team</h2>{% if perms.predictor.manage_users %}<a href="{% url 'user_list' %}" class="link-sm">Manage</a>{% endif %}</div>
+        <p><strong>{{ team.active }}</strong> active user{{ team.active|pluralize }}{% if team.pending_signups %} · <a href="{% url 'user_list' %}?status=pending"><strong>{{ team.pending_signups }}</strong> sign-up{{ team.pending_signups|pluralize }} awaiting approval</a>{% endif %}</p>
+        {% if recent_activity %}
+        <ul class="list-rows">{% for e in recent_activity %}<li><span>{{ e.get_action_display }}<small class="muted-text" style="display:block">{{ e.user_label|default:"system" }} · {{ e.object_repr }}</small></span><small class="muted-text">{{ e.created_at|date:"d-m-Y H:i" }}</small></li>{% endfor %}</ul>
+        {% endif %}
+    </section>
+    {% endif %}
+</div>
+{% endif %}

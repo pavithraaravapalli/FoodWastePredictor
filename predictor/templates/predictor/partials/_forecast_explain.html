@@ -1,0 +1,11 @@
+<h2 class="explain-title">How this was calculated</h2>
+<p class="explain-tag"><i data-lucide="info"></i>A statistical estimate from your own records, not machine learning.</p>
+<ul class="explain">
+    {% for line in f.notes %}<li>{{ line }}</li>{% endfor %}
+</ul>
+{% if f.warnings %}
+    {% for w in f.warnings %}<p class="alert alert-warn"><i data-lucide="triangle-alert"></i><span>{{ w }}</span></p>{% endfor %}
+{% endif %}
+<div class="not-used"><span class="eyebrow">Not used</span>
+    <ul>{% for n in f.not_used %}<li>{{ n }}</li>{% endfor %}</ul>
+</div>

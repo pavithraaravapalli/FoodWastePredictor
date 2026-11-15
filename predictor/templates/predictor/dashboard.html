@@ -1,0 +1,143 @@
+{% extends 'predictor/base.html' %}
+{% load static %}
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">{{ today|date:"l, d-m-Y" }}</p>
+        <h1>{{ greeting }}{% if display_name %}, {{ display_name }}{% endif %}</h1>
+        <p class="sub">{{ restaurant_name }} · food preparation, sales and waste</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'add_record' %}" class="btn btn-primary"><i data-lucide="plus"></i>Add daily record</a>
+        {% if perms.predictor.add_fooditem %}<a href="{% url 'food_item_add' %}" class="btn btn-ghost"><i data-lucide="package-plus"></i>Add food item</a>{% endif %}
+    </div>
+</header>
+
+{% include 'predictor/partials/_role_panels.html' %}
+
+{% include 'predictor/partials/_range_filter.html' %}
+
+{% if not has_records %}
+    <section class="card">
+    {% if not has_any_records %}
+        {% if not has_food_items %}
+            {% url 'food_item_add' as add_item_url %}
+                {% include 'predictor/partials/_empty_state.html' with icon='package' title='Start by adding your menu' text='Add the food items you prepare, with their cost per portion. Then log a daily record to see sales, waste and trends here.' action_url=add_item_url action_label='Add a food item' %}
+                    {% else %}
+            {% url 'add_record' as add_record_url %}
+            {% include 'predictor/partials/_empty_state.html' with icon='clipboard-list' title='Log your first daily record' text='Record how much of each item you prepared and sold. Your dashboard fills in as records are added.' action_url=add_record_url action_label='Add daily record' %}
+        {% endif %}
+    {% else %}
+        {% include 'predictor/partials/_empty_state.html' with icon='calendar-search' title='No records in this date range' text='Try a wider range to see your earlier records.' action_url='?range=all' action_label='Show all time' %}
+    {% endif %}
+    </section>
+{% else %}
+
+    {% if insight %}
+    <section class="insight insight-{{ insight.tone }}">
+        <span class="insight-icon"><i data-lucide="{% if insight.tone == 'warn' %}triangle-alert{% elif insight.tone == 'good' %}sprout{% else %}lightbulb{% endif %}"></i></span>
+        <div>
+            <p class="eyebrow">Performance insight</p>
+            <h2>{{ insight.title }}</h2>
+            <p>{{ insight.body }}</p>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="kpis" aria-label="Key metrics">
+        {% include 'predictor/partials/_kpi.html' with label='Food prepared' value=totals.prepared suffix=' portions' delta=deltas.prepared delta_tone='neutral' hint='Total portions made' %}
+        {% include 'predictor/partials/_kpi.html' with label='Food sold' value=totals.sold suffix=' portions' delta=deltas.sold delta_tone='neutral' hint='Total portions sold' %}
+        {% include 'predictor/partials/_kpi.html' with label='Waste rate' value=totals.waste_pct|default_if_none:'—' suffix='%' delta=deltas.waste_pct delta_tone=deltas.waste_pct.dir hint='Unsold ÷ prepared' %}
+        {% include 'predictor/partials/_kpi.html' with label='Estimated waste cost' prefix=currency value=totals.cost|floatformat:0 suffix='' delta=deltas.cost delta_tone=deltas.cost.dir hint='At cost per portion' %}
+    </section>
+
+    <div class="grid-main">
+        <section class="card">
+            <div class="card-head">
+                <h2>Sales and waste</h2>
+                <span class="legend"><i class="dot dot-sold"></i>Sold <i class="dot dot-waste"></i>Wasted</span>
+            </div>
+            <div class="chart-wrap"><canvas id="trend-chart" aria-label="Daily portions sold and wasted"></canvas></div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>Needs attention</h2></div>
+            {% if alerts %}
+            <ul class="alerts">
+                {% for a in alerts %}
+                <li class="alert alert-{{ a.level }}">
+                    <i data-lucide="{{ a.icon }}"></i>
+                    <span>{{ a.text }}</span>
+                    {% if a.action %}<a href="{% url a.action %}" class="link">{{ a.action_label }}</a>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted-text"><i data-lucide="circle-check" class="inline-icon"></i>Nothing needs attention right now.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <div class="grid-two">
+        <section class="card">
+            <div class="card-head"><h2>Top-selling items</h2></div>
+            <ul class="bars">
+                {% for i in top_sold %}
+                <li>
+                    <div class="bar-row"><span>{{ i.name }}</span><strong>{{ i.sold }}</strong></div>
+                    <div class="bar"><span class="fill fill-green" data-w="{{ i.sold }}" data-max="{{ top_sold_max }}"></span></div>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>Most wasted items</h2></div>
+            {% if top_wasted %}
+            <ul class="bars">
+                {% for i in top_wasted %}
+                <li>
+                    <div class="bar-row"><span>{{ i.name }}</span><strong>{{ i.waste }} <small>· {{ i.waste_pct }}%</small></strong></div>
+                    <div class="bar"><span class="fill fill-orange" data-w="{{ i.waste }}" data-max="{{ top_wasted_max }}"></span></div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted-text"><i data-lucide="circle-check" class="inline-icon"></i>No waste recorded in this period.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="card">
+        <div class="card-head"><h2>Recent records</h2><a href="{% url 'records' %}" class="link">View all</a></div>
+        <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Date</th><th>Item</th><th class="num">Prepared</th><th class="num">Sold</th><th class="num">Wasted</th><th class="num">Waste %</th></tr></thead>
+            <tbody>
+            {% for r in recent %}
+                <tr>
+                    <td>{{ r.date|date:"d-m-Y" }}</td>
+                    <td>{{ r.food_item.name }}{% if r.event_name %}<small class="tag">{{ r.event_name }}</small>{% endif %}</td>
+                    <td class="num">{{ r.prepared_quantity }}</td>
+                    <td class="num">{{ r.sold_quantity }}</td>
+                    <td class="num">{{ r.wasted_quantity }}</td>
+                    <td class="num"><span class="pill {% if r.waste_percentage > threshold %}pill-warn{% else %}pill-ok{% endif %}">{{ r.waste_percentage|floatformat:1 }}%</span></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </section>
+
+    {{ chart|json_script:"chart-data" }}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if has_records %}
+<script src="{% static 'predictor/vendor/chart.umd.js' %}"></script>
+<script src="{% static 'predictor/js/dashboard.js' %}"></script>
+{% endif %}
+{% endblock %}

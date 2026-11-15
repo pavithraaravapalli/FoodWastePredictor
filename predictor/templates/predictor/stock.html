@@ -1,0 +1,22 @@
+{% extends 'predictor/base.html' %}{% load kitchen %}
+{% block title %}Ingredient stock{% endblock %}
+{% block content %}
+<header class="page-head"><div><p class="eyebrow">Kitchen</p><h1>Ingredient stock</h1><p class="sub">Live stock, low-stock alerts, what you need to buy for upcoming plans, and recent movements.</p></div>
+<div class="head-actions"><a href="{% url 'ingredients' %}" class="btn btn-ghost"><i data-lucide="carrot"></i>All ingredients</a></div></header>
+<div class="kpis">
+<div class="kpi"><span class="kpi-label">Active ingredients</span><span class="kpi-value">{{ items|length }}</span><span class="kpi-delta muted">Tracked in stock</span></div>
+<div class="kpi"><span class="kpi-label">Low or out of stock</span><span class="kpi-value">{{ low|length }}</span><span class="kpi-delta muted">At or below the minimum</span></div>
+{% if show_cost %}<div class="kpi"><span class="kpi-label">Inventory value</span><span class="kpi-value">{{ currency }}{{ value|money }}</span><span class="kpi-delta muted">Stock × purchase cost</span></div>{% endif %}
+</div>
+{% if low %}<section class="card"><div class="card-head"><h2>Low-stock alerts</h2></div><ul class="plain-list">{% for i in low %}<li><a href="{% url 'ingredient_detail' i.pk %}"><strong>{{ i.name }}</strong></a> · {{ i.current_stock|qty:i.base_unit }} left (minimum {{ i.min_stock|qty:i.base_unit }}) {% if i.stock_status == 'out' %}<span class="pill pill-warn">Out</span>{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+<section class="card card-flush"><div class="card-head pad"><h2>Purchase requirements</h2><span class="muted-text">For saved plans, {{ plan_days }}</span></div>
+{% if needs.shopping %}<div class="table-wrap"><table class="table"><thead><tr><th>Ingredient</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage / to buy</th>{% if show_cost %}<th class="num">Cost to buy</th>{% endif %}</tr></thead><tbody>
+{% for r in needs.shopping %}<tr><td><a href="{% url 'ingredient_detail' r.ingredient.pk %}">{{ r.ingredient.name }}</a></td><td class="num">{{ r.required|qty:r.ingredient.base_unit }}</td><td class="num">{{ r.available|qty:r.ingredient.base_unit }}</td><td class="num">{% if r.shortage %}<span class="pill pill-warn">{{ r.shortage|qty:r.ingredient.base_unit }}</span>{% else %}<span class="pill pill-ok">Enough</span>{% endif %}</td>{% if show_cost %}<td class="num">{{ currency }}{{ r.to_buy_cost|money }}</td>{% endif %}</tr>{% endfor %}</tbody>
+{% if show_cost %}<tfoot><tr><td colspan="4"><strong>Estimated purchase cost</strong></td><td class="num"><strong>{{ currency }}{{ needs.purchase_cost|money }}</strong></td></tr></tfoot>{% endif %}</table></div>
+{% else %}<div class="pad">{% include 'predictor/partials/_empty_state.html' with icon='shopping-basket' title='Nothing to buy yet' text='Save a forecast or approve a plan for the next few days. Ingredient needs are calculated from the plan and the recipes.' %}</div>{% endif %}
+{% if needs.missing_recipes %}<p class="alert alert-warn"><i data-lucide="triangle-alert"></i><span>No recipe for {% for i in needs.missing_recipes %}{{ i.name }}{% if not forloop.last %}, {% endif %}{% endfor %}, so their ingredients are not included.</span></p>{% endif %}</section>
+<div class="grid-two">
+<section class="card"><div class="card-head"><h2>Most used, last 30 days</h2></div>{% if top %}<ul class="plain-list">{% for t in top %}<li><a href="{% url 'ingredient_detail' t.ingredient.pk %}">{{ t.ingredient.name }}</a> <span class="muted-text">· {{ t.actual|qty:t.ingredient.base_unit }}</span></li>{% endfor %}</ul>{% else %}<p class="muted-text">No submitted kitchen batches in the last 30 days.</p>{% endif %}</section>
+<section class="card"><div class="card-head"><h2>Recent stock movements</h2></div>{% if recent %}<ul class="plain-list">{% for t in recent %}<li>{{ t.created_at|date:"d-m-Y H:i" }} · <a href="{% url 'ingredient_detail' t.ingredient.pk %}">{{ t.ingredient.name }}</a> {{ t.quantity_change|signed_qty:t.ingredient.base_unit }} <span class="muted-text">({{ t.get_kind_display }})</span></li>{% endfor %}</ul>{% else %}<p class="muted-text">No movements yet.</p>{% endif %}</section>
+</div>
+{% endblock %}

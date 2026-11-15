@@ -1,0 +1,83 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Food inventory{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Menu</p>
+        <h1>Food inventory</h1>
+        <p class="sub">The items you prepare and what each portion costs you.</p>
+    </div>
+    <div class="head-actions">
+        {% if perms.predictor.add_fooditem %}<a href="{% url 'food_item_add' %}" class="btn btn-primary"><i data-lucide="plus"></i>Add food item</a>{% endif %}
+    </div>
+</header>
+
+{% if total_items %}
+<form method="get" class="filter-bar" data-autosubmit>
+    <div class="search">
+        <i data-lucide="search"></i>
+        <input type="search" name="q" value="{{ filters.q }}" class="input" placeholder="Search name or category" aria-label="Search food items">
+    </div>
+    <select name="category" class="input select-auto" aria-label="Category">
+        <option value="">All categories</option>
+        {% for c in categories %}<option value="{{ c }}" {% if c|lower == filters.category|lower %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="status" class="input select-auto" aria-label="Status">
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All</option>
+    </select>
+    <button type="submit" class="btn btn-ghost btn-sm">Search</button>
+    {% if filtered %}<a href="{% url 'inventory' %}" class="link-sm">Clear filters</a>{% endif %}
+</form>
+{% endif %}
+
+<section class="card card-flush">
+{% if items %}
+    <div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Item</th><th>Category</th><th class="num">Cost / portion</th><th class="num">Records</th><th>Status</th><th class="num">Actions</th></tr></thead>
+        <tbody>
+        {% for item in items %}
+            <tr class="{% if not item.is_active %}is-muted{% endif %}">
+                <td><strong>{{ item.name }}</strong></td>
+                <td>{{ item.category }}</td>
+                <td class="num">{% if perms.predictor.change_item_price %}{{ currency }}{{ item.cost_per_portion|floatformat:2 }}{% else %}<span class="muted-text">&ndash;</span>{% endif %}</td>
+                <td class="num">{{ item.record_count }}</td>
+                <td><span class="pill {% if item.is_active %}pill-ok{% else %}pill-off{% endif %}">{% if item.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                <td class="num">
+                    <div class="row-actions">
+                        {% if perms.predictor.change_fooditem %}
+                        <a href="{% url 'food_item_edit' item.pk %}" class="icon-btn" title="Edit" aria-label="Edit {{ item.name }}"><i data-lucide="pencil"></i></a>
+                        <button type="button" class="icon-btn" title="{% if item.is_active %}Deactivate{% else %}Reactivate{% endif %}" aria-label="{% if item.is_active %}Deactivate{% else %}Reactivate{% endif %} {{ item.name }}"
+                            data-confirm-action="{% url 'food_item_toggle' item.pk %}"
+                            data-confirm-title="{% if item.is_active %}Deactivate {{ item.name }}?{% else %}Reactivate {{ item.name }}?{% endif %}"
+                            data-confirm-text="{% if item.is_active %}It won't appear when adding new records. Its {{ item.record_count }} existing record{{ item.record_count|pluralize }} and history are kept.{% else %}It will be available for new records again.{% endif %}"
+                            data-confirm-button="{% if item.is_active %}Deactivate{% else %}Reactivate{% endif %}" data-confirm-tone="{% if item.is_active %}warn{% else %}ok{% endif %}">
+                            <i data-lucide="{% if item.is_active %}eye-off{% else %}eye{% endif %}"></i>
+                        </button>
+                        {% if perms.predictor.delete_fooditem %}<button type="button" class="icon-btn icon-danger" title="Delete" aria-label="Delete {{ item.name }}"
+                            data-confirm-action="{% url 'food_item_delete' item.pk %}"
+                            data-confirm-title="Delete {{ item.name }}?"
+                            data-confirm-text="{% if item.record_count %}This item has {{ item.record_count }} record{{ item.record_count|pluralize }}, so it can't be deleted. Deactivate it instead.{% else %}This permanently removes the item. It has no records.{% endif %}"
+                            data-confirm-button="{% if item.record_count %}{% else %}Delete{% endif %}" data-confirm-tone="danger">
+                            <i data-lucide="trash-2"></i>
+                        </button>{% endif %}
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+{% elif total_items %}
+    {% url 'inventory' as inventory_url %}
+    {% include 'predictor/partials/_empty_state.html' with icon='search-x' title='No items match your filters' text='Try a different search, category or status.' action_url=inventory_url action_label='Clear filters' %}
+{% else %}
+    {% url 'food_item_add' as add_url %}
+    {% include 'predictor/partials/_empty_state.html' with icon='package' title='Your menu is empty' text='Add the dishes and drinks you prepare, with what each portion costs you. Waste cost is calculated from this.' action_url=add_url action_label='Add your first item' %}
+{% endif %}
+</section>
+{% endblock %}

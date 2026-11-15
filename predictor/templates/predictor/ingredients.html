@@ -1,0 +1,27 @@
+{% extends 'predictor/base.html' %}{% load kitchen %}
+{% block title %}Ingredients{% endblock %}
+{% block content %}
+<header class="page-head">
+    <div><p class="eyebrow">Kitchen</p><h1>Ingredients</h1><p class="sub">Raw materials, their stock level and purchase cost. Quantities are kept in grams, millilitres or pieces.</p></div>
+    <div class="head-actions">{% if can_add %}<a href="{% url 'ingredient_add' %}" class="btn btn-primary"><i data-lucide="plus"></i>Add ingredient</a>{% endif %}<a href="{% url 'stock' %}" class="btn btn-ghost"><i data-lucide="warehouse"></i>Stock overview</a></div>
+</header>
+<form method="get" class="filter-bar filter-grid" data-autosubmit>
+    <div class="search"><i data-lucide="search"></i><input type="search" name="q" value="{{ filters.q }}" class="input" placeholder="Search name, category or supplier" aria-label="Search ingredients"></div>
+    <select name="category" class="input select-auto" aria-label="Category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c }}" {% if filters.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+    <select name="stock" class="input select-auto" aria-label="Stock"><option value="">Any stock level</option><option value="low" {% if filters.stock == 'low' %}selected{% endif %}>Low or out of stock</option></select>
+    <select name="state" class="input select-auto" aria-label="Status"><option value="active" {% if filters.state == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if filters.state == 'inactive' %}selected{% endif %}>Inactive</option><option value="all" {% if filters.state == 'all' %}selected{% endif %}>All</option></select>
+    <button type="submit" class="btn btn-ghost btn-sm">Apply</button>{% if filtered %}<a href="{% url 'ingredients' %}" class="link-sm">Clear filters</a>{% endif %}
+</form>
+<section class="card card-flush">
+{% if page.object_list %}
+<div class="table-wrap"><table class="table">
+<thead><tr><th>Ingredient</th><th>Category</th><th class="num">In stock</th><th class="num">Minimum</th>{% if show_cost %}<th class="num">Cost / kg or l{% endif %}</th><th>Status</th></tr></thead>
+<tbody>{% for i in page.object_list %}<tr>
+<td><a href="{% url 'ingredient_detail' i.pk %}"><strong>{{ i.name }}</strong></a>{% if i.supplier %}<br><small class="muted-text">{{ i.supplier }}</small>{% endif %}</td>
+<td>{{ i.category|default:"—" }}</td><td class="num">{{ i.current_stock|qty:i.base_unit }}</td><td class="num">{{ i.min_stock|qty:i.base_unit }}</td>
+{% if show_cost %}<td class="num">{{ currency }}{{ i.cost_per_unit|floatformat:4 }} / {{ i.base_unit }}</td>{% endif %}
+<td>{% if not i.is_active %}<span class="pill pill-off">Inactive</span>{% elif i.stock_status == 'out' %}<span class="pill pill-warn">Out of stock</span>{% elif i.stock_status == 'low' %}<span class="pill pill-warn">Low stock</span>{% else %}<span class="pill pill-ok">OK</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% include 'predictor/partials/_pager.html' %}
+{% else %}<div class="pad">{% url 'ingredient_add' as add_url %}{% include 'predictor/partials/_empty_state.html' with icon='carrot' title='No ingredients yet' text='Add the raw ingredients you cook with, then build recipes from them.' action_url=add_url action_label='Add an ingredient' %}</div>{% endif %}
+</section>
+{% endblock %}

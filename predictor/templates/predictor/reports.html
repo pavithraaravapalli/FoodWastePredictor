@@ -1,0 +1,142 @@
+{% extends 'predictor/base.html' %}
+{% load static %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>{% if kind == 'day' %}Daily{% elif kind == 'month' %}Monthly{% else %}Weekly{% endif %} report</h1>
+        <p class="sub">{{ label }}</p>
+    </div>
+    <div class="head-actions no-print">
+        <div class="menu" data-menu>
+            <button type="button" class="btn btn-ghost" data-menu-toggle aria-haspopup="true" aria-expanded="false"><i data-lucide="download"></i>Export CSV<i data-lucide="chevron-down"></i></button>
+            <div class="menu-list" role="menu" hidden>
+                <a role="menuitem" href="{% url 'reports_export' %}?kind={{ kind }}&{{ anchor_q }}&type=summary"><strong>Summary by item</strong><small>Prepared, sold, waste, cost</small></a>
+                <a role="menuitem" href="{% url 'reports_export' %}?kind={{ kind }}&{{ anchor_q }}&type=records"><strong>All daily records</strong><small>One row per item per day</small></a>
+                <a role="menuitem" href="{% url 'reports_export' %}?kind={{ kind }}&{{ anchor_q }}&type=forecast"><strong>Forecast vs actual</strong><small>Saved plans with real sales</small></a>
+            </div>
+        </div>
+        <button type="button" class="btn btn-ghost" data-print><i data-lucide="printer"></i>Print</button>
+    </div>
+</header>
+
+<div class="filter-bar no-print">
+    <div class="segmented" role="group" aria-label="Report type">
+        <a href="?kind=day" class="{% if kind == 'day' %}is-on{% endif %}">Daily</a>
+        <a href="?kind=week" class="{% if kind == 'week' %}is-on{% endif %}">Weekly</a>
+        <a href="?kind=month" class="{% if kind == 'month' %}is-on{% endif %}">Monthly</a>
+    </div>
+    <form method="get" class="period-nav" data-autosubmit>
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <a href="?kind={{ kind }}&{{ prev_q }}" class="icon-btn" aria-label="Previous period" title="Previous"><i data-lucide="chevron-left"></i></a>
+        {% if kind == 'month' %}
+            <label class="sr-only" for="period">Month</label><input type="month" id="period" name="month" value="{{ month_value }}" class="input date-auto">
+        {% else %}
+            <label class="sr-only" for="period">{% if kind == 'week' %}Any date in the week{% else %}Date{% endif %}</label><input type="date" id="period" name="date" value="{{ date_value }}" class="input date-auto">
+        {% endif %}
+        <a href="?kind={{ kind }}&{{ next_q }}" class="icon-btn" aria-label="Next period" title="Next"><i data-lucide="chevron-right"></i></a>
+        {% if not is_current %}<a href="?kind={{ kind }}" class="link-sm">Jump to current</a>{% endif %}
+    </form>
+</div>
+
+{% if not has_records %}
+<section class="card">
+    {% url 'add_record' as rec_url %}
+    {% include 'predictor/partials/_empty_state.html' with icon='file-bar-chart' title='No records in this period' text='Pick another period, or add daily records for these dates to see the report.' action_url=rec_url action_label='Add daily record' %}
+</section>
+{% else %}
+
+<section class="kpis" aria-label="Summary">
+    {% include 'predictor/partials/_kpi.html' with label='Food prepared' value=totals.prepared suffix=' portions' hint='All items combined' %}
+    {% include 'predictor/partials/_kpi.html' with label='Food sold' value=totals.sold suffix=' portions' hint='Total portions sold' %}
+    {% include 'predictor/partials/_kpi.html' with label='Food wasted' value=totals.waste suffix=' portions' hint=totals.waste_pct|stringformat:'s'|add:'% of prepared' %}
+    {% include 'predictor/partials/_kpi.html' with label='Estimated financial loss' prefix=currency value=totals.cost|floatformat:0 hint='At cost per portion' %}
+</section>
+
+{% if kind != 'day' %}
+<section class="card">
+    <div class="card-head"><h2>Preparation vs sales</h2><span class="legend"><i class="dot dot-fc"></i>Prepared <i class="dot dot-sold"></i>Sold</span></div>
+    <div class="chart-wrap chart-sm"><canvas id="report-chart" aria-label="Portions prepared and sold each day"></canvas></div>
+</section>
+{% endif %}
+
+<section class="card card-flush">
+    <div class="card-head pad"><h2>Food preparation vs sales</h2></div>
+    <div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Item</th><th>Category</th><th class="num">Prepared</th><th class="num">Sold</th><th class="num">Wasted</th><th class="num">Waste %</th><th class="num">Waste cost</th></tr></thead>
+        <tbody>
+        {% for i in items %}
+            <tr><td><strong>{{ i.name }}</strong></td><td>{{ i.category }}</td><td class="num">{{ i.prepared }}</td><td class="num">{{ i.sold }}</td><td class="num">{{ i.waste }}</td>
+                <td class="num"><span class="pill {% if i.waste_pct > threshold %}pill-warn{% else %}pill-ok{% endif %}">{{ i.waste_pct }}%</span></td>
+                <td class="num">{{ currency }}{{ i.cost|floatformat:0 }}</td></tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><td colspan="2">Total</td><td class="num">{{ totals.prepared }}</td><td class="num">{{ totals.sold }}</td><td class="num">{{ totals.waste }}</td><td class="num">{{ totals.waste_pct }}%</td><td class="num">{{ currency }}{{ totals.cost|floatformat:0 }}</td></tr></tfoot>
+    </table>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-head"><h2>Waste summary</h2></div>
+    {% if top_waste %}
+    <p>Most food cost was lost on
+        {% for i in top_waste %}<strong>{{ i.name }}</strong> ({{ currency }}{{ i.cost|floatformat:0 }}, {{ i.waste }} portions){% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}.
+        In total {{ totals.waste }} of {{ totals.prepared }} portions went unsold, an estimated loss of {{ currency }}{{ totals.cost|floatformat:0 }}.</p>
+    {% else %}
+    <p class="muted-text"><i data-lucide="circle-check" class="inline-icon"></i>Everything prepared was sold in this period.</p>
+    {% endif %}
+</section>
+
+{% if kind != 'day' %}
+<section class="card card-flush">
+    <div class="card-head pad"><h2>Day by day</h2></div>
+    <div class="table-wrap">
+    <table class="table compact">
+        <thead><tr><th>Date</th><th class="num">Prepared</th><th class="num">Sold</th><th class="num">Wasted</th><th class="num">Waste %</th><th class="num">Waste cost</th></tr></thead>
+        <tbody>
+        {% for d in days %}
+            <tr><td>{{ d.date|date:"D, d-m-Y" }}</td><td class="num">{{ d.prepared }}</td><td class="num">{{ d.sold }}</td><td class="num">{{ d.waste }}</td>
+                <td class="num"><span class="pill {% if d.waste_pct > threshold %}pill-warn{% else %}pill-ok{% endif %}">{{ d.waste_pct }}%</span></td><td class="num">{{ currency }}{{ d.cost|floatformat:0 }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+{% endif %}
+{% endif %}
+
+<section class="card card-flush">
+    <div class="card-head pad"><h2>Forecast vs actual demand</h2>
+        {% if fva_summary %}<span class="muted-text small-text">{{ fva_summary.n }} saved forecast{{ fva_summary.n|pluralize }} · off by {{ fva_summary.mae }} portions on average{% if fva_summary.pct is not None %} ({{ fva_summary.pct }}%){% endif %} · {{ fva_summary.within10 }} within 10%</span>{% endif %}</div>
+    {% if fva %}
+    <div class="table-wrap">
+    <table class="table compact">
+        <thead><tr><th>Date</th><th>Item</th><th class="num">Predicted</th><th class="num">Actual sold</th><th class="num">Difference</th><th class="num">Error</th><th class="num">Planned / prepared</th></tr></thead>
+        <tbody>
+        {% for r in fva %}
+            <tr><td>{{ r.date|date:"D, d-m-Y" }}</td><td><strong>{{ r.item }}</strong></td><td class="num">{{ r.predicted }}</td><td class="num">{{ r.actual }}</td>
+                <td class="num {% if r.error > 0 %}delta up{% elif r.error < 0 %}delta down{% endif %}">{% if r.error > 0 %}+{% endif %}{{ r.error }}</td>
+                <td class="num">{% if r.error_pct is not None %}{{ r.error_pct }}%{% else %}—{% endif %}</td>
+                <td class="num">{{ r.planned }} / {{ r.actual_prepared }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="pad"><p class="muted-text"><i data-lucide="info" class="inline-icon"></i>No comparisons for this period yet. Save a forecast to the plan in Demand Forecast; once that day's record is logged it appears here.</p></div>
+    {% endif %}
+</section>
+
+{% if chart %}{{ chart|json_script:"report-data" }}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if chart and kind != 'day' %}
+<script src="{% static 'predictor/vendor/chart.umd.js' %}"></script>
+<script src="{% static 'predictor/js/reports.js' %}"></script>
+{% endif %}
+<script src="{% static 'predictor/js/reports_ui.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Overview{% endblock %} · FoodWastePredictor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="{% static 'predictor/vendor/flatpickr/flatpickr.min.css' %}">
+    <link rel="stylesheet" href="{% static 'predictor/style.css' %}">
+    {% block head %}{% endblock %}
+    <script>
+        /* Apply the saved sidebar state before first paint to avoid a flash. */
+        try { if (localStorage.getItem('fwp-sidebar') === 'collapsed') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}
+    </script>
+</head>
+<body>
+    <div class="app">
+        {% include 'predictor/partials/_sidebar.html' %}
+        <div class="scrim" data-sidebar-close></div>
+
+        <div class="main">
+            <header class="topbar">
+                <button type="button" class="icon-btn" data-sidebar-open aria-label="Open navigation">
+                    <i data-lucide="menu"></i>
+                </button>
+                <span class="brand-mini">FoodWastePredictor</span>
+            </header>
+
+            <main class="content">
+                {% include 'predictor/partials/_messages.html' %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% include 'predictor/partials/_confirm_dialog.html' %}
+
+    <script src="{% static 'predictor/vendor/lucide.min.js' %}"></script>
+    <script src="{% static 'predictor/js/app.js' %}"></script>
+    <script src="{% static 'predictor/vendor/flatpickr/flatpickr.min.js' %}"></script>
+    <script src="{% static 'predictor/js/datepicker.js' %}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

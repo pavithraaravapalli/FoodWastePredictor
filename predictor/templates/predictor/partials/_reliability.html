@@ -1,0 +1,12 @@
+{% if r %}
+<div class="rel rel-{{ r.level|lower }}">
+    <span class="eyebrow">Past accuracy</span>
+    <strong>{{ r.level }}</strong>
+    <p>Tested on this item's last {{ r.n }} recorded days, the same method was off by about {{ r.mae }} portions a day ({{ r.pct }}%).</p>
+</div>
+{% else %}
+<div class="rel rel-none">
+    <span class="eyebrow">Past accuracy</span>
+    <p>Not shown yet. It needs at least 5 past days to test the method honestly.</p>
+</div>
+{% endif %}

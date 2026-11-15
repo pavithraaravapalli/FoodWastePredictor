@@ -1,0 +1,33 @@
+{% extends 'predictor/base.html' %}{% load kitchen %}
+{% block title %}{{ ing.name }}{% endblock %}
+{% block content %}
+<header class="page-head"><div><p class="eyebrow"><a href="{% url 'ingredients' %}" class="back-link"><i data-lucide="arrow-left"></i>Ingredients</a></p>
+<h1>{{ ing.name }} {% if not ing.is_active %}<span class="pill pill-off">Inactive</span>{% endif %}</h1><p class="sub">{{ ing.category|default:"Uncategorised" }}{% if ing.supplier %} · Supplier: {{ ing.supplier }}{% endif %}</p></div>
+<div class="head-actions">{% if can_change %}<a href="{% url 'ingredient_edit' ing.pk %}" class="btn btn-ghost"><i data-lucide="pencil"></i>Edit</a>
+<form method="post" action="{% url 'ingredient_toggle' ing.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'ingredient_detail' ing.pk %}"><button class="btn btn-ghost"><i data-lucide="{% if ing.is_active %}eye-off{% else %}eye{% endif %}"></i>{% if ing.is_active %}Deactivate{% else %}Reactivate{% endif %}</button></form>{% endif %}</div></header>
+<div class="kpis">
+<div class="kpi"><span class="kpi-label">In stock</span><span class="kpi-value">{{ ing.current_stock|qty:ing.base_unit }}</span><span class="kpi-delta muted">{% if ing.current_stock < 0 %}Negative: usage exceeded recorded stock. Recount and adjust.{% else %}{{ ing.stock_status|yesno:"," }}{% endif %}</span></div>
+<div class="kpi"><span class="kpi-label">Minimum level</span><span class="kpi-value">{{ ing.min_stock|qty:ing.base_unit }}</span><span class="kpi-delta muted">{% if ing.is_low %}Stock is at or below the minimum{% else %}Alert when stock reaches this{% endif %}</span></div>
+<div class="kpi"><span class="kpi-label">Used, last 30 days</span><span class="kpi-value">{{ used30|qty:ing.base_unit }}</span><span class="kpi-delta muted">From submitted kitchen batches</span></div>
+{% if show_cost %}<div class="kpi"><span class="kpi-label">Stock value</span><span class="kpi-value">{{ currency }}{{ ing.stock_value|money }}</span><span class="kpi-delta muted">Cost {{ currency }}{{ ing.cost_per_unit|floatformat:4 }} per {{ ing.base_unit }}</span></div>{% endif %}
+</div>
+{% if can_stock %}
+<div class="grid-two">
+<section class="card"><div class="card-head"><h2>Record a purchase</h2></div>
+<form method="post" action="{% url 'ingredient_purchase' ing.pk %}" class="stack-form" data-loading-form>{% csrf_token %}
+<div class="inline-fields">{{ purchase_form.quantity }}{{ purchase_form.unit }}</div>{{ purchase_form.cost }}{{ purchase_form.note }}
+<button class="btn btn-primary"><i data-lucide="plus"></i>Add stock</button></form></section>
+<section class="card"><div class="card-head"><h2>Adjust stock</h2></div>
+<form method="post" action="{% url 'ingredient_adjust' ing.pk %}" class="stack-form" data-loading-form>{% csrf_token %}
+<div class="inline-fields">{{ adjust_form.new_quantity }}{{ adjust_form.unit }}</div>{{ adjust_form.reason }}
+<button class="btn btn-ghost"><i data-lucide="scale"></i>Set counted stock</button></form></section>
+</div>{% endif %}
+<section class="card card-flush"><div class="card-head pad"><h2>Stock history</h2><span class="muted-text">Never edited or deleted. Corrections appear as reversals.</span></div>
+{% if history.object_list %}<div class="table-wrap"><table class="table"><thead><tr><th>When</th><th>Type</th><th class="num">Change</th><th class="num">Balance</th><th>By</th><th>Reference / reason</th></tr></thead><tbody>
+{% for t in history.object_list %}<tr><td>{{ t.created_at|date:"d-m-Y H:i" }}</td><td><span class="pill {% if t.kind == 'consumption' %}pill-info{% elif t.kind == 'reversal' %}pill-warn{% else %}pill-ok{% endif %}">{{ t.get_kind_display }}</span></td>
+<td class="num">{{ t.quantity_change|signed_qty:ing.base_unit }}</td><td class="num">{{ t.balance_after|qty:ing.base_unit }}</td><td>{% if t.created_by %}{{ t.created_by.get_full_name|default:t.created_by.username }}{% else %}—{% endif %}</td>
+<td><small>{{ t.reference }}</small>{% if t.reason %}<br><small class="muted-text">{{ t.reason }}</small>{% endif %}{% if t.batch %}<br><a class="link-sm" href="{% url 'batch_detail' t.batch.pk %}">View batch</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% include 'predictor/partials/_pager.html' with page=history %}
+{% else %}<div class="pad">{% include 'predictor/partials/_empty_state.html' with icon='history' title='No stock movements yet' text='Record a purchase or opening stock to start the history.' %}</div>{% endif %}</section>
+<section class="card"><div class="card-head"><h2>Used in recipes</h2></div>{% if used_in %}<ul class="plain-list">{% for l in used_in %}<li><a href="{% url 'recipe_detail' l.recipe.pk %}">{{ l.recipe.food_item.name }}</a> <span class="muted-text">· {{ l.quantity|floatformat:"-3" }} {{ l.unit }} per {{ l.recipe.yield_quantity|floatformat:"-2" }} portion(s)</span></li>{% endfor %}</ul>{% else %}<p class="muted-text">Not used in any recipe yet.</p>{% endif %}</section>
+{% endblock %}

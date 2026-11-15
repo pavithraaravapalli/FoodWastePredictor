@@ -1,0 +1,6 @@
+<div class="empty">
+    <span class="empty-icon"><i data-lucide="{{ icon|default:'inbox' }}"></i></span>
+    <h3>{{ title }}</h3>
+    <p>{{ text }}</p>
+    {% if action_url %}<a href="{{ action_url }}" class="btn btn-primary">{{ action_label }}</a>{% endif %}
+</div>

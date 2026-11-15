@@ -1,0 +1,39 @@
+{% extends 'predictor/base.html' %}
+{% block title %}{% if item %}Edit {{ item.name }}{% else %}Add food item{% endif %}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow"><a href="{% url 'inventory' %}" class="back-link"><i data-lucide="arrow-left"></i>Food inventory</a></p>
+        <h1>{% if item %}Edit food item{% else %}Add food item{% endif %}</h1>
+        <p class="sub">{% if item %}Changing the cost updates waste-cost figures for all of this item's records.{% else %}Items appear in the daily record form once added.{% endif %}</p>
+    </div>
+</header>
+
+<form method="post" class="card form-card" novalidate data-loading-form>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+    <div class="form-grid">
+        <div class="field">
+            <label for="{{ form.name.id_for_label }}">Name</label>
+            {{ form.name }}
+            {% for e in form.name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.category.id_for_label }}">Category</label>
+            {{ form.category }}
+            <datalist id="category-options">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
+            {% for e in form.category.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.cost_per_portion.id_for_label }}">Cost per portion ({{ currency }})</label>
+            {{ form.cost_per_portion }}
+            {% for e in form.cost_per_portion.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>{% if item %}Save changes{% else %}Add item{% endif %}</span></button>
+        <a href="{% url 'inventory' %}" class="btn btn-ghost">Cancel</a>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends 'predictor/base.html' %}
+{% load static %}
+{% block title %}Profile & settings{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Account</p>
+        <h1>Profile &amp; settings</h1>
+        <p class="sub">Your details, your restaurant and your sign-in security.</p>
+    </div>
+</header>
+
+<section class="card profile-card">
+    <span class="avatar avatar-lg tone-{{ avatar_tone }}">{{ user_initial }}</span>
+    <div class="profile-main">
+        <h2>{{ display_name }}</h2>
+        <p class="muted-text">{{ user.email|default:"No email set" }}</p>
+        <div class="chips">
+            <span class="pill pill-ok">{{ profile.get_role_display }}</span>
+        </div>
+    </div>
+    <dl class="profile-facts">
+        <div><dt>Restaurant</dt><dd>{{ restaurant_obj.name }}</dd></div>
+        <div><dt>Member since</dt><dd>{{ user.date_joined|date:"d-m-Y" }}</dd></div>
+        <div><dt>Last sign-in</dt><dd>{{ user.last_login|date:"d-m-Y H:i"|default:"This session" }}</dd></div>
+        <div><dt>Menu</dt><dd>{{ item_count }} active item{{ item_count|pluralize }} · {{ record_count }} record{{ record_count|pluralize }}</dd></div>
+    </dl>
+</section>
+
+<div class="tabs" role="tablist" aria-label="Settings sections" data-tabs data-initial="{{ tab }}">
+    <button type="button" role="tab" class="tab" data-tab="profile"><i data-lucide="user"></i>Profile</button>
+    {% if can_restaurant %}<button type="button" role="tab" class="tab" data-tab="restaurant"><i data-lucide="store"></i>Restaurant</button>{% endif %}
+    {% if can_integrations %}<button type="button" role="tab" class="tab" data-tab="integrations"><i data-lucide="plug"></i>Integrations</button>{% endif %}
+    <button type="button" role="tab" class="tab" data-tab="password"><i data-lucide="shield-check"></i>Security</button>
+</div>
+
+<section class="card form-card tab-panel" data-panel="profile" role="tabpanel">
+    <div><h2>Personal details</h2><p class="muted-text">Shown to your team and used for password reset emails.</p></div>
+    <form method="post" novalidate data-loading-form class="stack">
+        {% csrf_token %}<input type="hidden" name="form" value="profile">
+        {% with f=forms.profile %}
+        {% if f.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ f.non_field_errors|join:" " }}</span></div>{% endif %}
+        <div class="form-grid">
+            {% for field in f %}
+            <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}{% if not field.field.required %} <span class="optional">optional</span>{% endif %}</label>{{ field }}
+                {% for e in field.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+            {% endfor %}
+        </div>
+        {% endwith %}
+        <div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>Save profile</span></button></div>
+    </form>
+</section>
+
+{% if can_restaurant %}
+<section class="card form-card tab-panel" data-panel="restaurant" role="tabpanel">
+    <div><h2>Restaurant</h2><p class="muted-text">Used across the app. The location powers the map on Traffic Intelligence.</p></div>
+    <form method="post" novalidate data-loading-form class="stack">
+        {% csrf_token %}<input type="hidden" name="form" value="restaurant">
+        {% with f=forms.restaurant %}
+        {% if f.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ f.non_field_errors|join:" " }}</span></div>{% endif %}
+        <div class="form-grid">
+            <div class="field"><label for="{{ f.name.id_for_label }}">{{ f.name.label }}</label>{{ f.name }}{% for e in f.name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+            <div class="field"><label for="{{ f.business_type.id_for_label }}">{{ f.business_type.label }}</label>{{ f.business_type }}</div>
+            <div class="field"><label for="{{ f.city.id_for_label }}">{{ f.city.label }} <span class="optional">optional</span></label>{{ f.city }}</div>
+            <div class="field"><label for="{{ f.phone.id_for_label }}">{{ f.phone.label }} <span class="optional">optional</span></label>{{ f.phone }}</div>
+            <div class="field span-2"><label for="{{ f.address.id_for_label }}">{{ f.address.label }} <span class="optional">optional</span></label>{{ f.address }}</div>
+        </div>
+        <fieldset class="fieldset">
+            <legend>Map location <span class="optional">optional</span></legend>
+            <div class="form-grid">
+                <div class="field"><label for="{{ f.latitude.id_for_label }}">Latitude</label>{{ f.latitude }}{% for e in f.latitude.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+                <div class="field"><label for="{{ f.longitude.id_for_label }}">Longitude</label>{{ f.longitude }}{% for e in f.longitude.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-geolocate><i data-lucide="locate-fixed"></i><span>Use my current location</span></button>
+            <p class="field-hint" data-geo-msg></p>
+        </fieldset>
+        <fieldset class="fieldset">
+            <legend>Preferences</legend>
+            <div class="form-grid">
+                <div class="field"><label for="{{ f.currency_symbol.id_for_label }}">{{ f.currency_symbol.label }}</label>{{ f.currency_symbol }}{% for e in f.currency_symbol.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+                <div class="field"><label for="{{ f.waste_alert_threshold.id_for_label }}">{{ f.waste_alert_threshold.label }}</label>{{ f.waste_alert_threshold }}
+                    <p class="field-hint">Items and days above this waste rate are flagged.</p>{% for e in f.waste_alert_threshold.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+            </div>
+        </fieldset>
+        {% endwith %}
+        <div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>Save restaurant</span></button></div>
+    </form>
+</section>
+{% endif %}
+
+{% if can_integrations %}
+<section class="card form-card tab-panel" data-panel="integrations" role="tabpanel">
+    <div><h2>Email (password reset and invitations)</h2>
+        <p class="muted-text">Status: {% if email_configured %}<span class="pill pill-ok">Sending real email</span>{% else %}<span class="pill pill-off">Terminal only</span>{% endif %}
+        {% if not email_configured %}Reset links are printed in the server terminal until SMTP is set up. See SETUP_EMAIL.md.{% endif %}</p></div>
+</section>
+{% endif %}
+
+<section class="card form-card tab-panel" data-panel="password" role="tabpanel">
+    <div><h2>Password</h2><p class="muted-text">Changing it keeps you signed in on this device.</p></div>
+    {% if has_password %}
+    <form method="post" novalidate data-loading-form data-signup class="stack">
+        {% csrf_token %}<input type="hidden" name="form" value="password">
+        {% with f=forms.password %}
+        {% if f.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ f.non_field_errors|join:" " }}</span></div>{% endif %}
+        <div class="field"><label for="{{ f.old_password.id_for_label }}">Current password</label>
+            <div class="input-wrap">{{ f.old_password }}<button type="button" class="reveal" data-reveal aria-label="Show password"><i data-lucide="eye"></i></button></div>
+            {% for e in f.old_password.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+        <div class="field"><label for="{{ f.new_password1.id_for_label }}">New password</label>
+            <div class="input-wrap">{{ f.new_password1 }}<button type="button" class="reveal" data-reveal aria-label="Show password"><i data-lucide="eye"></i></button></div>
+            <div class="strength" data-strength aria-live="polite"><span class="strength-bar"><i></i><i></i><i></i><i></i></span><small data-strength-text>Use 8+ characters with letters and numbers</small></div>
+            {% for e in f.new_password1.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+        <div class="field"><label for="{{ f.new_password2.id_for_label }}">Confirm new password</label>
+            <div class="input-wrap">{{ f.new_password2 }}<button type="button" class="reveal" data-reveal aria-label="Show password"><i data-lucide="eye"></i></button></div>
+            <p class="field-error" data-match-msg hidden>Passwords do not match yet.</p>
+            {% for e in f.new_password2.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+        {% endwith %}
+        <div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>Change password</span></button></div>
+    </form>
+    {% else %}
+    <p class="note-box"><i data-lucide="info"></i>This account has no password yet. Use <a href="{% url 'password_reset' %}" class="link-sm">Forgot password</a> with {{ user.email }} to set one.</p>
+    {% endif %}
+    <form method="post" action="{% url 'logout' %}" class="signout-row">
+        {% csrf_token %}
+        <div><strong>Sign out</strong><p class="muted-text">End your session on this device.</p></div>
+        <button type="submit" class="btn btn-ghost"><i data-lucide="log-out"></i>Log out</button>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'predictor/js/auth.js' %}"></script><script src="{% static 'predictor/js/settings.js' %}"></script>{% endblock %}

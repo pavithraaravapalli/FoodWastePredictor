@@ -1,0 +1,53 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Activity log{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div><p class="eyebrow">Audit</p><h1>Activity log</h1><p class="sub">Who did what, and what changed. Passwords and tokens are never recorded.</p></div>
+</header>
+
+<form method="get" class="filter-bar filter-grid">
+    <select name="action" class="input" aria-label="Action">
+        <option value="">All actions</option>
+        {% for key, label in actions %}<option value="{{ key }}" {% if filters.action == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="user" class="input" aria-label="User">
+        <option value="">All users</option>
+        {% for u in users %}<option value="{{ u.pk }}" {% if filters.user == u.pk|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+    </select>
+    <label class="sr-only" for="a-start">From</label><input type="date" id="a-start" name="start" value="{{ filters.start }}" class="input">
+    <span class="muted-text">to</span>
+    <label class="sr-only" for="a-end">To</label><input type="date" id="a-end" name="end" value="{{ filters.end }}" class="input">
+    <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+    {% if filtered %}<a href="{% url 'activity_log' %}" class="link-sm">Clear filters</a>{% endif %}
+</form>
+
+<section class="card card-flush">
+{% if page.object_list %}
+    <div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>When</th><th>User</th><th>Action</th><th>Related to</th><th>Change</th></tr></thead>
+        <tbody>
+        {% for e in page.object_list %}
+        <tr>
+            <td>{{ e.created_at|date:"d-m-Y H:i" }}</td>
+            <td>{{ e.user_label|default:"System / visitor" }}</td>
+            <td><span class="pill pill-muted">{{ e.get_action_display }}</span></td>
+            <td>{{ e.object_repr }}{% if e.object_type %}<small class="muted-text" style="display:block">{{ e.object_type }}</small>{% endif %}</td>
+            <td class="diff">
+                {% if e.old_values or e.new_values %}
+                    {% for k, v in e.new_values.items %}{{ k }}: {% if e.old_values %}{% for ok, ov in e.old_values.items %}{% if ok == k %}<del>{{ ov }}</del> → {% endif %}{% endfor %}{% endif %}<ins>{{ v }}</ins>{% if not forloop.last %}<br>{% endif %}{% empty %}{% for ok, ov in e.old_values.items %}{{ ok }}: <del>{{ ov }}</del>{% if not forloop.last %}<br>{% endif %}{% endfor %}{% endfor %}
+                {% endif %}
+                {% if e.summary %}<span>{{ e.summary }}</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% include 'predictor/partials/_pager.html' %}
+{% else %}
+    {% include 'predictor/partials/_empty_state.html' with icon='history' title='No activity recorded yet' text='Changes to records, items, plans and users will appear here.' %}
+{% endif %}
+</section>
+{% endblock %}

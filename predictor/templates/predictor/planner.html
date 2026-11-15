@@ -1,0 +1,96 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Preparation planner{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Kitchen</p>
+        <h1>Preparation planner</h1>
+        <p class="sub">{% if can_manage %}What to prepare, confirmed by a manager before the kitchen starts.{% else %}Approved preparation quantities for the day.{% endif %}</p>
+    </div>
+    <div class="head-actions">
+        {% if perms.predictor.generate_predictions %}<a href="{% url 'forecast' %}?date={{ date|date:'Y-m-d' }}" class="btn btn-ghost"><i data-lucide="trending-up"></i>Forecast this date</a>{% endif %}
+    </div>
+</header>
+
+<form method="get" class="filter-bar" data-autosubmit>
+    <a href="?date={{ prev_date|date:'Y-m-d' }}" class="icon-btn" aria-label="Previous day" title="Previous day"><i data-lucide="chevron-left"></i></a>
+    <label class="sr-only" for="plan-date">Plan date</label>
+    <input type="date" id="plan-date" name="date" value="{{ date|date:'Y-m-d' }}" class="input date-auto">
+    <a href="?date={{ next_date|date:'Y-m-d' }}" class="icon-btn" aria-label="Next day" title="Next day"><i data-lucide="chevron-right"></i></a>
+    <strong class="plan-day">{{ date|date:"l, d-m-Y" }}{% if is_today %} · Today{% endif %}</strong>
+</form>
+
+{% if lines %}
+<div class="plan-summary">
+    <span class="pill pill-off">{{ counts.suggested }} suggested</span>
+    <span class="pill pill-warn">{{ counts.approved }} approved</span>
+    <span class="pill pill-ok">{{ counts.prepared }} prepared</span>
+    {% if counts.suggested and can_manage %}
+    <form method="post" action="{% url 'planner_approve_all' %}" class="inline-form">
+        {% csrf_token %}<input type="hidden" name="date" value="{{ date|date:'Y-m-d' }}">
+        <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="check-check"></i>Approve all at suggested quantities</button>
+    </form>
+    {% endif %}
+</div>
+
+<section class="card card-flush">
+    <div class="table-wrap">
+    <table class="table plan-table">
+        <thead><tr><th>Item</th><th class="num">Predicted demand</th><th class="num">Safety reserve</th><th class="num">Prepare</th><th>Status</th><th class="num">Action</th></tr></thead>
+        <tbody>
+        {% for l in lines %}
+            <tr>
+                <td><strong>{{ l.food_item.name }}</strong>
+                    <details class="why"><summary>Why?</summary><p>{{ l.explanation|linebreaksbr|default:"Saved without an explanation." }}</p></details>
+                </td>
+                <td class="num">{{ l.predicted_demand }}</td>
+                <td class="num">+{{ l.safety_reserve }}</td>
+                <td class="num"><span class="fc-big">{{ l.quantity_to_prepare }}</span>
+                    {% if l.approved_quantity is not None and l.approved_quantity != l.recommended_preparation %}<small class="muted-text">suggested {{ l.recommended_preparation }}</small>{% endif %}</td>
+                <td>
+                    <span class="pill {% if l.status == 'prepared' %}pill-ok{% elif l.status == 'approved' %}pill-warn{% else %}pill-off{% endif %}">{{ l.get_status_display }}</span>
+                    {% if l.approved_by %}<small class="muted-text approver">by {{ l.approved_by.first_name|default:l.approved_by.username }}, {{ l.approved_at|date:"H:i" }}</small>{% endif %}
+                </td>
+                <td class="num">
+                    {% if not can_manage %}
+                        {% if l.status == 'approved' %}<span class="muted-text">Ready to prepare</span>{% else %}<span class="pill pill-ok">Prepared</span>{% endif %}
+                    {% elif l.status == 'suggested' %}
+                    <form method="post" action="{% url 'planner_action' l.pk %}" class="approve-form">
+                        {% csrf_token %}<input type="hidden" name="action" value="approve">
+                        <label class="sr-only" for="q{{ l.pk }}">Quantity to approve for {{ l.food_item.name }}</label>
+                        <input type="number" id="q{{ l.pk }}" name="quantity" min="0" value="{{ l.recommended_preparation }}" class="input qty">
+                        <button type="submit" class="btn btn-primary btn-sm">Approve</button>
+                    </form>
+                    {% elif l.status == 'approved' %}
+                    <div class="row-actions">
+                        {% if can_batch %}<a href="{% url 'batch_add' %}?plan={{ l.pk }}" class="btn btn-ghost btn-sm">Assign batch</a>{% endif %}
+                        <form method="post" action="{% url 'planner_action' l.pk %}">{% csrf_token %}<input type="hidden" name="action" value="prepared"><button type="submit" class="btn btn-primary btn-sm">Mark prepared</button></form>
+                        <form method="post" action="{% url 'planner_action' l.pk %}">{% csrf_token %}<input type="hidden" name="action" value="reopen"><button type="submit" class="btn btn-ghost btn-sm">Change</button></form>
+                    </div>
+                    {% else %}
+                    <div class="row-actions">
+                        <a href="{% url 'add_record' %}?item={{ l.food_item_id }}&date={{ l.date|date:'Y-m-d' }}&prepared={{ l.quantity_to_prepare }}" class="btn btn-ghost btn-sm">Log results</a>
+                        <form method="post" action="{% url 'planner_action' l.pk %}">{% csrf_token %}<input type="hidden" name="action" value="reopen"><button type="submit" class="btn btn-ghost btn-sm">Reopen</button></form>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+{% if req %}{% include 'predictor/partials/_requirements.html' %}{% endif %}
+<p class="note"><i data-lucide="info"></i>Ingredient needs use saved recipes and current stock. Only people with plan permission can approve quantities.</p>
+{% else %}
+<section class="card">
+    {% if can_manage %}
+    {% url 'forecast' as fc_url %}
+    {% include 'predictor/partials/_empty_state.html' with icon='chef-hat' title='No plan for this day yet' text='Generate a forecast and save it to the plan. Each line can then be approved and marked prepared.' action_url=fc_url action_label='Open demand forecast' %}
+    {% else %}
+    {% include 'predictor/partials/_empty_state.html' with icon='chef-hat' title='No approved plan for this day' text='A manager has not approved a preparation plan for this date yet. Check back later.' %}
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Local events{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Outside conditions</p>
+        <h1>Local events</h1>
+        <p class="sub">Nearby events that can change demand. Automatic and manual events are kept apart.</p>
+    </div>
+    <div class="head-actions">
+        {% if can_add %}<a href="{% url 'event_add' %}" class="btn btn-primary"><i data-lucide="plus"></i>Add event</a>{% endif %}
+    </div>
+</header>
+
+{% include 'predictor/partials/_mode_switch.html' %}
+{% if fetch_error %}<p class="alert alert-warn"><i data-lucide="triangle-alert"></i><span>{{ fetch_error }}</span></p>{% endif %}
+
+<form method="get" class="filter-bar filter-grid" data-autosubmit>
+    <div class="search"><i data-lucide="search"></i><input type="search" name="q" value="{{ filters.q }}" class="input" placeholder="Search name or venue" aria-label="Search events"></div>
+    <select name="category" class="input select-auto" aria-label="Category"><option value="">All categories</option>{% for k, l in categories %}<option value="{{ k }}" {% if filters.category == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select name="show" class="input select-auto" aria-label="Which events"><option value="upcoming" {% if filters.show == 'upcoming' %}selected{% endif %}>Upcoming</option><option value="all" {% if filters.show == 'all' %}selected{% endif %}>All, including past</option></select>
+    <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+    {% if filtered %}<a href="{% url 'events' %}" class="link-sm">Clear filters</a>{% endif %}
+</form>
+
+<div class="grid-main">
+<section class="card card-flush">
+    <div class="card-head pad"><h2>Entered by you <span class="pill pill-ok">Manual</span></h2></div>
+    {% if manual.object_list %}
+    <div class="table-wrap"><table class="table">
+        <thead><tr><th>Starts</th><th>Event</th><th>Type</th><th>Status</th><th class="num">Actions</th></tr></thead>
+        <tbody>{% for e in manual.object_list %}<tr>
+            <td>{{ e.start_at|date:"d-m-Y H:i" }}</td>
+            <td><strong>{{ e.name }}</strong>{% if e.venue %}<br><small class="muted-text">{{ e.venue }}</small>{% endif %}{% if e.notes %}<br><small class="muted-text">{{ e.notes }}</small>{% endif %}</td>
+            <td>{{ e.get_category_display }}</td>
+            <td>{% if e.is_active %}<span class="pill pill-ok">Active</span>{% else %}<span class="pill pill-off">Inactive</span>{% endif %}</td>
+            <td class="num"><div class="row-actions">
+                {% if can_change %}<a href="{% url 'event_edit' e.pk %}" class="icon-btn" title="Edit" aria-label="Edit {{ e.name }}"><i data-lucide="pencil"></i></a>
+                <form method="post" action="{% url 'event_toggle' e.pk %}">{% csrf_token %}<button class="icon-btn" title="{% if e.is_active %}Deactivate{% else %}Reactivate{% endif %}" aria-label="{% if e.is_active %}Deactivate{% else %}Reactivate{% endif %} {{ e.name }}"><i data-lucide="{% if e.is_active %}eye-off{% else %}eye{% endif %}"></i></button></form>{% endif %}
+                {% if can_delete %}<button type="button" class="icon-btn icon-danger" title="Remove" aria-label="Remove {{ e.name }}" data-confirm-action="{% url 'event_delete' e.pk %}" data-confirm-title="Remove this event?" data-confirm-text="{{ e.name }} will be removed. Deactivate it instead to keep a record." data-confirm-button="Remove" data-confirm-tone="danger"><i data-lucide="trash-2"></i></button>{% endif %}
+            </div></td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% include 'predictor/partials/_pager.html' with page=manual %}
+    {% else %}
+    <div class="pad">{% url 'event_add' as add_url %}{% include 'predictor/partials/_empty_state.html' with icon='calendar-plus' title='No manual events' text='Add local festivals, fairs, weddings or gatherings you know about.' action_url=add_url action_label='Add an event' %}</div>
+    {% endif %}
+</section>
+
+<section class="card card-flush">
+    <div class="card-head pad"><h2>Discovered automatically <span class="pill pill-off">Auto</span></h2>
+        {% if mode == 'auto' and can_add and api_enabled %}<form method="post" action="{% url 'events_refresh' %}" data-loading-form data-busy-text="Searching…">{% csrf_token %}<button class="btn btn-ghost btn-sm"><i data-lucide="refresh-cw"></i>Search now</button></form>{% endif %}</div>
+    {% if auto %}
+    <ul class="obs-list">{% for e in auto %}<li>
+        <span class="obs-meta"><strong>{{ e.name }}</strong><small class="muted-text">{{ e.start_at|date:"d-m-Y H:i" }}{% if e.venue %} · {{ e.venue }}{% endif %}{% if e.distance_km is not None %} · {{ e.distance_km }} km away{% endif %} · {{ e.get_category_display }} · {{ e.provider }}{% if not e.is_active %} · inactive{% endif %}</small></span>
+        {% if can_change %}<form method="post" action="{% url 'event_toggle' e.pk %}">{% csrf_token %}<button class="icon-btn" title="{% if e.is_active %}Ignore this event{% else %}Use this event{% endif %}" aria-label="{% if e.is_active %}Ignore{% else %}Use{% endif %} {{ e.name }}"><i data-lucide="{% if e.is_active %}eye-off{% else %}eye{% endif %}"></i></button></form>{% endif %}
+    </li>{% endfor %}</ul>
+    {% if last_fetch %}<p class="field-hint pad">Last updated {{ last_fetch|date:"d-m-Y H:i" }}.</p>{% endif %}
+    {% if stale %}<p class="alert alert-warn"><i data-lucide="clock"></i><span>This list is more than 24 hours old.</span></p>{% endif %}
+    {% else %}
+    <div class="pad">
+        {% if not api_enabled %}<p class="muted-text"><i data-lucide="plug-zap" class="inline-icon"></i><strong>Automatic discovery is not connected.</strong> No event provider key is configured (<code>TICKETMASTER_API_KEY</code>). Add events by hand; everything else works without it.</p>
+        {% elif mode == 'manual' %}<p class="muted-text">Automatic mode is off. Switch to automatic to search for events within {{ restaurant_obj.event_radius_km }} km.</p>
+        {% else %}<p class="muted-text">No matching events were returned by {{ provider }} for the next 14 days within {{ restaurant_obj.event_radius_km }} km. That only describes this provider: its coverage is limited in some regions, so other events may exist. Add them manually.</p>{% endif %}
+    </div>
+    {% endif %}
+</section>
+</div>
+{% endblock %}

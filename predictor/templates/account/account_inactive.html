@@ -1,0 +1,12 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waiting for approval · FoodWastePredictor</title>
+<link rel="stylesheet" href="{% static 'predictor/style.css' %}"></head>
+<body class="auth-body"><main class="auth-panel" style="min-height:100vh">
+<div class="auth-card auth-done">
+    <span class="empty-icon"><i data-lucide="hourglass"></i></span>
+    <h1>Waiting for approval</h1>
+    <p class="auth-sub">Your account has been created but the restaurant owner has to approve it before you can sign in. If you were deactivated earlier, please contact the owner.</p>
+    <a href="{% url 'login' %}" class="btn btn-primary btn-block">Back to sign in</a>
+</div></main>
+<script src="{% static 'predictor/vendor/lucide.min.js' %}"></script><script>lucide.createIcons()</script></body></html>

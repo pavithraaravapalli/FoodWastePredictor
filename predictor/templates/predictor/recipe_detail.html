@@ -1,0 +1,11 @@
+{% extends 'predictor/base.html' %}{% load kitchen %}
+{% block title %}{{ recipe.name }}{% endblock %}
+{% block content %}
+<header class="page-head"><div><p class="eyebrow"><a href="{% url 'recipes' %}" class="back-link"><i data-lucide="arrow-left"></i>Recipes</a></p><h1>{{ recipe.food_item.name }} {% if not recipe.is_active %}<span class="pill pill-off">Inactive</span>{% endif %}</h1>
+<p class="sub">{{ recipe.name }} · makes {{ recipe.yield_quantity|floatformat:"-2" }} portion{{ recipe.yield_quantity|pluralize }}{% if show_cost %} · cost per portion {{ currency }}{{ cost|money }}{% endif %}</p></div>
+<div class="head-actions">{% if can_change %}<a href="{% url 'recipe_edit' recipe.pk %}" class="btn btn-primary"><i data-lucide="pencil"></i>Edit recipe</a>
+<form method="post" action="{% url 'recipe_toggle' recipe.pk %}">{% csrf_token %}<button class="btn btn-ghost">{% if recipe.is_active %}Deactivate{% else %}Reactivate{% endif %}</button></form>{% endif %}</div></header>
+<section class="card card-flush"><div class="table-wrap"><table class="table"><thead><tr><th>Ingredient</th><th class="num">For the whole recipe</th><th class="num">Loss</th><th class="num">Per portion</th>{% if show_cost %}<th class="num">Cost / portion</th>{% endif %}</tr></thead><tbody>
+{% for line, per, cost_line in rows %}<tr><td><strong>{{ line.ingredient.name }}</strong></td><td class="num">{{ line.quantity|floatformat:"-3" }} {{ line.unit }}</td><td class="num">{% if line.loss_percent %}{{ line.loss_percent|floatformat:"-2" }}%{% else %}—{% endif %}</td><td class="num">{{ per|qty:line.ingredient.base_unit }}</td>{% if show_cost %}<td class="num">{{ currency }}{{ cost_line|money }}</td>{% endif %}</tr>{% endfor %}</tbody></table></div></section>
+{% if recipe.instructions %}<section class="card"><div class="card-head"><h2>Preparation</h2></div><p style="white-space:pre-line">{{ recipe.instructions }}</p></section>{% endif %}
+{% endblock %}

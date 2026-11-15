@@ -1,0 +1,10 @@
+{% extends 'predictor/auth/auth_base.html' %}
+{% block title %}Password updated{% endblock %}
+{% block card %}
+<div class="auth-done">
+    <span class="empty-icon"><i data-lucide="circle-check"></i></span>
+    <h1>Password updated</h1>
+    <p class="auth-sub">You can now sign in with your new password.</p>
+    <a href="{% url 'login' %}" class="btn btn-primary btn-block">Sign in</a>
+</div>
+{% endblock %}

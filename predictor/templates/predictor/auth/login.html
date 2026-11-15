@@ -1,0 +1,39 @@
+{% extends 'predictor/auth/auth_base.html' %}
+{% block title %}Sign in{% endblock %}
+{% block card %}
+<h1>Welcome back</h1>
+<p class="auth-sub">Sign in to continue to your dashboard.</p>
+
+<form method="post" class="auth-form" novalidate data-loading-form data-busy-text="Signing in…">
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+    {% if form.non_field_errors %}
+    <div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>
+    {% endif %}
+
+    <div class="field">
+        <label for="{{ form.identifier.id_for_label }}">{{ form.identifier.label }}</label>
+        {{ form.identifier }}
+        {% for e in form.identifier.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field">
+        <div class="label-row">
+            <label for="{{ form.password.id_for_label }}">Password</label>
+            <a href="{% url 'password_reset' %}" class="link-sm">Forgot password?</a>
+        </div>
+        <div class="input-wrap">
+            {{ form.password }}
+            <button type="button" class="reveal" data-reveal aria-label="Show password"><i data-lucide="eye"></i></button>
+        </div>
+        {% for e in form.password.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    </div>
+
+    <label class="check" for="{{ form.remember.id_for_label }}">{{ form.remember }}<span>{{ form.remember.label }}</span></label>
+
+    <button type="submit" class="btn btn-primary btn-block"><span>Sign in</span><i data-lucide="arrow-right"></i></button>
+</form>
+
+<p class="auth-switch">New to FoodWastePredictor? <a href="{% url 'signup' %}">Request an account</a></p>
+{% endblock %}

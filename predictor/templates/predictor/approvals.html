@@ -1,0 +1,45 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Approvals{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Daily records</p>
+        <h1>Pending approvals</h1>
+        <p class="sub">Records submitted by staff. Approved records are locked for them and count toward forecasts and reports.</p>
+    </div>
+</header>
+
+<section class="card card-flush">
+{% if page.object_list %}
+    <div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Date</th><th>Item</th><th class="num">Prepared</th><th class="num">Sold</th><th>Submitted by</th><th>Review</th></tr></thead>
+        <tbody>
+        {% for r in page.object_list %}
+        <tr>
+            <td>{{ r.date|date:"d-m-Y" }}</td>
+            <td><strong>{{ r.food_item.name }}</strong><small class="muted-text" style="display:block">{{ r.weather }}{% if r.is_holiday %} · Holiday{% endif %}{% if r.event_name %} · {{ r.event_name }}{% endif %}</small></td>
+            <td class="num">{{ r.prepared_quantity }}</td>
+            <td class="num">{{ r.sold_quantity }}</td>
+            <td>{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}&ndash;{% endif %}<small class="muted-text" style="display:block">{{ r.submitted_at|date:"d-m-Y H:i" }}</small></td>
+            <td>
+                <form method="post" action="{% url 'record_review' r.pk %}" class="review-form">
+                    {% csrf_token %}
+                    <label class="sr-only" for="note{{ r.pk }}">Note (required to reject)</label>
+                    <input type="text" id="note{{ r.pk }}" name="note" class="input" maxlength="300" placeholder="Note (required to reject)">
+                    <button type="submit" name="action" value="approve" class="btn btn-primary btn-sm"><i data-lucide="check"></i>Approve</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-ghost btn-sm"><i data-lucide="x"></i>Reject</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% include 'predictor/partials/_pager.html' %}
+{% else %}
+    {% include 'predictor/partials/_empty_state.html' with icon='badge-check' title='Nothing is waiting for approval' text='When staff submit records they will appear here.' %}
+{% endif %}
+</section>
+{% endblock %}

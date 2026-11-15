@@ -1,0 +1,120 @@
+{% extends 'predictor/base.html' %}
+{% load static %}
+{% block title %}Traffic intelligence{% endblock %}
+{% block head %}{% if restaurant_obj.has_location %}<link rel="stylesheet" href="{% static 'predictor/vendor/leaflet/leaflet.css' %}">{% endif %}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Highway</p>
+        <h1>Traffic intelligence</h1>
+        <p class="sub">Traffic near {{ restaurant_obj.name }}, to help explain busy and quiet days.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'forecast' %}" class="btn btn-ghost"><i data-lucide="trending-up"></i>Demand forecast</a>
+    </div>
+</header>
+
+{% include 'predictor/partials/_mode_switch.html' %}
+{% if fetch_error %}<p class="alert alert-warn"><i data-lucide="triangle-alert"></i><span>{{ fetch_error }} The forecast continues to use your history and manual entries.</span></p>{% endif %}
+
+<div class="grid-main">
+    <section class="card">
+        <div class="card-head">
+            <h2>Restaurant location</h2>
+            <a href="{% url 'settings' %}?tab=restaurant" class="link">{% if restaurant_obj.has_location %}Change{% else %}Set location{% endif %}</a>
+        </div>
+        {% if restaurant_obj.has_location %}
+            <p class="loc-line"><i data-lucide="map-pin"></i><span><strong>{{ restaurant_obj.name }}</strong>{% if restaurant_obj.address %} · {{ restaurant_obj.address }}{% endif %}{% if restaurant_obj.city %} · {{ restaurant_obj.city }}{% endif %}
+                <small class="muted-text">{{ restaurant_obj.latitude }}, {{ restaurant_obj.longitude }}</small></span></p>
+            <div id="map" class="map" data-lat="{{ restaurant_obj.latitude }}" data-lng="{{ restaurant_obj.longitude }}" data-name="{{ restaurant_obj.name }}" data-icons="{% static 'predictor/vendor/leaflet/images/' %}" role="img" aria-label="Map showing the restaurant location"></div>
+            <p class="map-credit">Map data © OpenStreetMap contributors. The map shows location only; it does not show live traffic.</p>
+        {% else %}
+            {% url 'settings' as settings_url %}
+            {% include 'predictor/partials/_empty_state.html' with icon='map-pin-off' title='No location set' text='Add your latitude and longitude in Settings to see the map and to enable live traffic readings.' action_url=settings_url|add:'?tab=restaurant' action_label='Set restaurant location' %}
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="card-head"><h2>Latest reading</h2></div>
+        {% if latest %}
+            <div class="reading">
+                <span class="cond cond-{{ latest.condition }}"><i class="cond-dot"></i>{{ latest.get_condition_display }}</span>
+                <p class="muted-text">{{ latest.observed_at|date:"d-m-Y H:i" }} · {{ latest.observed_at|timesince }} ago</p>
+                <dl class="reading-facts">
+                    <div><dt>Source</dt><dd>{% if latest.is_automatic %}Automatic · {{ latest.source }}{% else %}Manual entry{% endif %}</dd></div>
+                    {% if latest.congestion_pct is not None %}<div><dt>Congestion</dt><dd>{{ latest.congestion_pct }}%</dd></div>{% endif %}
+                    {% if latest.delay_seconds is not None %}<div><dt>Delay on this segment</dt><dd>{{ latest.delay_seconds }} s</dd></div>{% endif %}
+                    {% if latest.road_class %}<div><dt>Nearby road</dt><dd>{{ latest.road_class }}</dd></div>{% endif %}
+                    {% if latest.current_speed is not None %}<div><dt>Speed</dt><dd>{{ latest.current_speed }} km/h <small class="muted-text">(free flow {{ latest.free_flow_speed }})</small></dd></div>{% endif %}
+                    {% if latest.notes %}<div><dt>Note</dt><dd>{{ latest.notes }}</dd></div>{% endif %}
+                </dl>
+                {% if latest_stale %}<p class="alert alert-warn"><i data-lucide="clock"></i><span>This reading is more than 3 hours old and may no longer be accurate.</span></p>{% endif %}
+            </div>
+        {% else %}
+            <p class="muted-text"><i data-lucide="info" class="inline-icon"></i>Traffic information is unavailable. Nothing has been recorded yet.</p>
+        {% endif %}
+
+        <div class="live-box">
+            {% if api_enabled and restaurant_obj.has_location %}
+            <form method="post" action="{% url 'traffic_fetch' %}" data-loading-form data-busy-text="Fetching…">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary btn-block"><i data-lucide="radio-tower"></i><span>Fetch live reading</span></button>
+            </form>
+            <p class="field-hint">Source: {{ provider }}. Saved with a timestamp each time.</p>
+            {% elif api_enabled %}
+            <p class="field-hint"><i data-lucide="map-pin-off" class="inline-icon"></i>Set your restaurant location to fetch live traffic.</p>
+            {% else %}
+            <p class="field-hint"><i data-lucide="plug-zap" class="inline-icon"></i><strong>Live traffic is not connected.</strong> No traffic data provider is configured, so nothing is shown automatically. Add an API key (see <code>SETUP_TRAFFIC.md</code>) or enter conditions by hand below. Everything else in the app works without it.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<div class="grid-main">
+    <section class="card">
+        <div class="card-head"><h2>Record traffic manually</h2></div>
+        <form method="post" action="{% url 'traffic_add' %}" novalidate data-loading-form data-busy-text="Saving…" class="stack">
+            {% csrf_token %}
+            <fieldset class="field role-field">
+                <legend>Condition on the road outside</legend>
+                <div class="cond-grid">
+                    {% for radio in form.condition %}
+                    <label class="role-card" for="{{ radio.id_for_label }}">{{ radio.tag }}<span class="role-body"><i class="cond-dot cond-d-{{ radio.data.value }}"></i><strong>{{ radio.choice_label }}</strong></span></label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div class="two-col">
+                <div class="field"><label for="{{ form.observed_at.id_for_label }}">Observed at</label>{{ form.observed_at }}</div>
+                <div class="field"><label for="{{ form.notes.id_for_label }}">Note <span class="optional">optional</span></label>{{ form.notes }}</div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="plus"></i><span>Save reading</span></button></div>
+        </form>
+        <p class="note nm"><i data-lucide="info"></i>{% if days_recorded %}{{ days_recorded }} day{{ days_recorded|pluralize }} with traffic recorded. {% endif %}The forecast only uses traffic once it has at least 3 matching and 3 other recorded days for an item.</p>
+    </section>
+
+    <section class="card card-flush">
+        <div class="card-head pad"><h2>Recent readings</h2></div>
+        {% if observations %}
+        <ul class="obs-list">
+            {% for o in observations %}
+            <li>
+                <span class="cond cond-{{ o.condition }}"><i class="cond-dot"></i>{{ o.get_condition_display }}</span>
+                <span class="obs-meta">{{ o.observed_at|date:"d-m-Y H:i" }}<small class="muted-text">{% if o.is_automatic %}Auto · {% endif %}{{ o.source }}{% if o.notes %} · {{ o.notes }}{% endif %}</small></span>
+                <button type="button" class="icon-btn icon-danger" title="Delete" aria-label="Delete reading from {{ o.observed_at|date:'d-m-Y H:i' }}"
+                    data-confirm-action="{% url 'traffic_delete' o.pk %}" data-confirm-title="Delete this reading?"
+                    data-confirm-text="{{ o.get_condition_display }} traffic on {{ o.observed_at|date:'d-m-Y H:i' }} will be removed." data-confirm-button="Delete" data-confirm-tone="danger"><i data-lucide="trash-2"></i></button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<div class="pad"><p class="muted-text">No readings yet.</p></div>{% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if restaurant_obj.has_location %}
+<script src="{% static 'predictor/vendor/leaflet/leaflet.js' %}"></script>
+<script src="{% static 'predictor/js/traffic.js' %}"></script>
+{% endif %}
+{% endblock %}

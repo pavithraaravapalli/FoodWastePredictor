@@ -1,0 +1,75 @@
+{% extends 'predictor/base.html' %}
+{% block title %}{{ heading|default:'Add daily record' }}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Daily records</p>
+        <h1>{{ heading|default:'Add daily record' }}</h1>
+        <p class="sub">{% if record %}{{ record.food_item.name }} · {{ record.date|date:'d-m-Y' }}{% else %}Log what you prepared and sold for one food item on one day.{% endif %}</p>
+    </div>
+</header>
+
+<form method="post" class="card form-card" novalidate data-loading-form>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>
+    {% endif %}
+
+    <div class="form-grid">
+        <div class="field">
+            <label for="{{ form.food_item.id_for_label }}">Food item</label>
+            {{ form.food_item }}
+            {% if not form.food_item.field.queryset.exists %}<p class="field-error">No active food items yet. <a href="{% url 'food_item_add' %}" class="link-sm">Add one first</a>.</p>{% endif %}
+            {% for e in form.food_item.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.date.id_for_label }}">Date</label>
+            {{ form.date }}
+            {% for e in form.date.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.prepared_quantity.id_for_label }}">Portions prepared</label>
+            {{ form.prepared_quantity }}
+            {% for e in form.prepared_quantity.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.sold_quantity.id_for_label }}">Portions sold</label>
+            {{ form.sold_quantity }}
+            {% for e in form.sold_quantity.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.weather.id_for_label }}">Weather</label>
+            {{ form.weather }}
+            <datalist id="weather-options">
+                <option value="Sunny"><option value="Cloudy"><option value="Rainy"><option value="Hot"><option value="Cold"><option value="Foggy">
+            </datalist>
+            {% for e in form.weather.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="field">
+            <label for="{{ form.event_name.id_for_label }}">Special event <span class="optional">optional</span></label>
+            {{ form.event_name }}
+            {% for e in form.event_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+    </div>
+
+    <label class="check" for="{{ form.is_holiday.id_for_label }}">
+        {{ form.is_holiday }}<span>{{ form.is_holiday.label }}</span>
+    </label>
+
+    {% if not is_approver %}
+    <p class="note-box"><i data-lucide="info"></i><span>{% if record and record.status == 'rejected' %}A manager rejected this record{% if record.review_note %}: <strong>{{ record.review_note }}</strong>{% endif %}. Fix it and submit again.{% else %}Submit your record for your manager to review. You can save a draft and finish it later. Approved records are locked.{% endif %}</span></p>
+    {% endif %}
+
+    <div class="form-actions">
+        {% if is_approver %}
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>{{ submit_label|default:'Save record' }}</span></button>
+        {% else %}
+        <button type="submit" name="submit_action" value="submit" class="btn btn-primary"><i data-lucide="send"></i><span>Submit for approval</span></button>
+        <button type="submit" name="submit_action" value="draft" class="btn btn-ghost"><span>Save as draft</span></button>
+        {% endif %}
+        <a href="{% if record %}{% url 'records' %}{% else %}{% url 'dashboard' %}{% endif %}" class="btn btn-ghost">Cancel</a>
+    </div>
+</form>
+{% endblock %}

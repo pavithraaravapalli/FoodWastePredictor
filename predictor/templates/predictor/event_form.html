@@ -1,0 +1,21 @@
+{% extends 'predictor/base.html' %}
+{% block title %}{% if event %}Edit event{% else %}Add event{% endif %}{% endblock %}
+
+{% block content %}
+<header class="page-head"><div>
+    <p class="eyebrow"><a href="{% url 'events' %}" class="back-link"><i data-lucide="arrow-left"></i>Local events</a></p>
+    <h1>{% if event %}Edit event{% else %}Add a local event{% endif %}</h1>
+    <p class="sub">Festivals, fairs, weddings, college or religious events and gatherings that may change how much you sell.</p>
+</div></header>
+<form method="post" class="card form-card" novalidate data-loading-form>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+    <div class="form-grid">
+        {% for f in form.visible_fields %}
+        <div class="field{% if f.name == 'name' or f.name == 'notes' %} span-2{% endif %}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if not f.field.required %} <span class="optional">optional</span>{% endif %}</label>{{ f }}
+            {% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>
+        {% endfor %}
+    </div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>{% if event %}Save changes{% else %}Add event{% endif %}</span></button><a href="{% url 'events' %}" class="btn btn-ghost">Cancel</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">{{ today|date:"l, d-m-Y" }}</p>
+        <h1>{{ greeting }}{% if display_name %}, {{ display_name }}{% endif %}</h1>
+        <p class="sub">{{ restaurant_name }} · your tasks for today</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'add_record' %}" class="btn btn-primary"><i data-lucide="plus"></i>Add daily record</a>
+    </div>
+</header>
+
+{% if rejected %}
+<section class="card">
+    <h2>Needs your attention</h2>
+    <ul class="list-rows">
+    {% for r in rejected %}
+        <li><span><strong>{{ r.food_item.name }}</strong> · {{ r.date|date:"d-m-Y" }}<small class="muted-text" style="display:block">Rejected{% if r.review_note %}: {{ r.review_note }}{% endif %}</small></span>
+            <a href="{% url 'record_edit' r.pk %}" class="btn btn-ghost btn-sm">Fix and resubmit</a></li>
+    {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+<div class="grid-two">
+    <section class="card">
+        <h2>Today's preparation plan</h2>
+        {% if plan_lines %}
+        <ul class="list-rows">
+        {% for l in plan_lines %}
+            <li><span><strong>{{ l.food_item.name }}</strong></span>
+                <span><span class="fc-big">{{ l.quantity_to_prepare }}</span> portions
+                {% if l.food_item_id in today_done %}<span class="pill pill-ok">Logged</span>
+                {% else %}<a href="{% url 'add_record' %}?item={{ l.food_item_id }}&date={{ today|date:'Y-m-d' }}&prepared={{ l.quantity_to_prepare }}" class="btn btn-ghost btn-sm">Log results</a>{% endif %}</span></li>
+        {% endfor %}
+        </ul>
+        {% else %}
+        {% include 'predictor/partials/_empty_state.html' with icon='chef-hat' title='No approved plan yet' text='A manager has not approved today\'s preparation plan. You can still log what you prepared and sold.' %}
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>My submissions</h2>
+        <p class="summary-line">
+            <span class="pill pill-muted">{{ counts.draft }} draft</span>
+            <span class="pill pill-info">{{ counts.submitted }} waiting for approval</span>
+            <span class="pill pill-ok">{{ counts.approved }} approved</span>
+            <span class="pill pill-warn">{{ counts.rejected }} rejected</span>
+        </p>
+        {% if recent %}
+        <ul class="list-rows">
+        {% for r in recent %}
+            <li><span><strong>{{ r.food_item.name }}</strong> · {{ r.date|date:"d-m-Y" }}</span>
+                <span class="pill {% if r.status == 'approved' %}pill-ok{% elif r.status == 'rejected' %}pill-warn{% elif r.status == 'submitted' %}pill-info{% else %}pill-muted{% endif %}">{{ r.get_status_display }}</span></li>
+        {% endfor %}
+        </ul>
+        <p><a href="{% url 'records' %}" class="link-sm">See all my records</a></p>
+        {% else %}
+        {% url 'add_record' as add_url %}
+        {% include 'predictor/partials/_empty_state.html' with icon='clipboard-list' title='No submissions yet' text='Add what you prepared and sold today, then submit it for approval.' action_url=add_url action_label='Add daily record' %}
+        {% endif %}
+    </section>
+</div>
+
+<section class="card">
+    <h2>Available food items</h2>
+    {% if items %}<p>{% for i in items %}<span class="tag">{{ i.name }}</span> {% endfor %}</p>
+    {% else %}<p class="muted-text">No active food items yet. Ask a manager to add some.</p>{% endif %}
+</section>
+{% endblock %}

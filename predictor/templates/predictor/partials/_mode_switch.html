@@ -1,0 +1,11 @@
+{# Shows whether this data is automatic or manual and (for managers/owners) lets them switch. #}
+<div class="mode-bar">
+    <span class="pill {% if mode == 'auto' %}pill-ok{% else %}pill-off{% endif %}"><i data-lucide="{% if mode == 'auto' %}radio-tower{% else %}pencil{% endif %}" class="inline-icon"></i>{% if mode == 'auto' %}Automatic mode{% else %}Manual mode{% endif %}</span>
+    {% if can_switch_mode %}
+    <form method="post" action="{% url 'data_mode_set' mode_key %}" class="mode-form">
+        {% csrf_token %}
+        <input type="hidden" name="mode" value="{% if mode == 'auto' %}manual{% else %}auto{% endif %}">
+        <button type="submit" class="btn btn-ghost btn-sm"><i data-lucide="repeat"></i>Switch to {% if mode == 'auto' %}manual{% else %}automatic{% endif %}</button>
+    </form>
+    {% endif %}
+</div>

@@ -1,0 +1,17 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Kitchen batches{% endblock %}
+{% block content %}
+<header class="page-head"><div><p class="eyebrow">Kitchen</p><h1>{% if is_reviewer %}Preparation batches{% else %}My batches{% endif %}</h1>
+<p class="sub">{% if is_reviewer %}Batches assigned to your team. Staff record the actual ingredients used, and stock is deducted when they submit.{% else %}Batches assigned to you. Record what you actually used, then submit.{% endif %}</p></div>
+<div class="head-actions">{% if can_add %}<a href="{% url 'batch_add' %}" class="btn btn-primary"><i data-lucide="plus"></i>New batch</a>{% endif %}{% if is_reviewer %}<a href="{% url 'consumption' %}" class="btn btn-ghost"><i data-lucide="bar-chart-3"></i>Consumption analytics</a>{% endif %}</div></header>
+{% if waiting %}<p class="alert alert-info"><i data-lucide="info"></i><span>{{ waiting }} submitted batch{{ waiting|pluralize:"es" }} to review.</span></p>{% endif %}
+<form method="get" class="filter-bar filter-grid" data-autosubmit>
+<div class="search"><i data-lucide="search"></i><input type="search" name="q" value="{{ filters.q }}" class="input" placeholder="Search food item" aria-label="Search batches"></div>
+<input type="date" name="date" value="{{ filters.date }}" class="input date-auto" aria-label="Date">
+<select name="status" class="input select-auto" aria-label="Status"><option value="">All statuses</option>{% for k, l in statuses %}<option value="{{ k }}" {% if filters.status == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+<button class="btn btn-ghost btn-sm">Apply</button>{% if filtered %}<a href="{% url 'kitchen' %}" class="link-sm">Clear filters</a>{% endif %}</form>
+<section class="card card-flush">{% if page.object_list %}<div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Food item</th><th class="num">Planned</th><th class="num">Prepared</th><th>Assigned to</th><th>Status</th></tr></thead><tbody>
+{% for b in page.object_list %}<tr><td>{{ b.date|date:"d-m-Y" }}{% if b.time_slot %}<br><small class="muted-text">{{ b.time_slot }}</small>{% endif %}</td><td><a href="{% url 'batch_detail' b.pk %}"><strong>{{ b.food_item.name }}</strong></a></td><td class="num">{{ b.planned_quantity }}</td><td class="num">{{ b.actual_quantity|default_if_none:"—" }}</td><td>{% if b.assigned_to %}{{ b.assigned_to.get_full_name|default:b.assigned_to.username }}{% else %}Unassigned{% endif %}</td>
+<td>{% if b.status == 'submitted' %}<span class="pill pill-ok">Submitted</span>{% elif b.status == 'correction' %}<span class="pill pill-warn">Needs correction</span>{% else %}<span class="pill pill-info">To do</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% include 'predictor/partials/_pager.html' %}
+{% else %}<div class="pad">{% include 'predictor/partials/_empty_state.html' with icon='cooking-pot' title='No batches' text='Nothing has been assigned yet. A manager creates batches from the preparation plan.' %}</div>{% endif %}</section>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Daily records{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Daily records</p>
+        <h1>{% if own_only %}My records{% else %}Daily records{% endif %}</h1>
+        <p class="sub">{% if own_only %}Everything you have submitted and where it stands with your manager.{% else %}What you prepared, sold and wasted, item by item.{% endif %}</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'add_record' %}" class="btn btn-primary"><i data-lucide="plus"></i>Add daily record</a>
+    </div>
+</header>
+
+{% if has_any %}
+<form method="get" class="filter-bar filter-grid" data-autosubmit>
+    <div class="search">
+        <i data-lucide="search"></i>
+        <input type="search" name="q" value="{{ filters.q }}" class="input" placeholder="Search item, weather or event" aria-label="Search records">
+    </div>
+    <select name="status" class="input select-auto" aria-label="Status">
+        <option value="">All statuses</option>
+        {% for key, label in status_choices %}<option value="{{ key }}" {% if filters.status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="item" class="input select-auto" aria-label="Food item">
+        <option value="">All items</option>
+        {% for i in items %}<option value="{{ i.pk }}" {% if filters.item == i.pk|stringformat:'s' %}selected{% endif %}>{{ i.name }}{% if not i.is_active %} (inactive){% endif %}</option>{% endfor %}
+    </select>
+    <label class="sr-only" for="f-start">From</label>
+    <input type="date" id="f-start" name="start" value="{{ filters.start }}" class="input date-auto">
+    <span class="muted-text">to</span>
+    <label class="sr-only" for="f-end">To</label>
+    <input type="date" id="f-end" name="end" value="{{ filters.end }}" class="input date-auto">
+    <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+    {% if filtered %}<a href="{% url 'records' %}" class="link-sm">Clear filters</a>{% endif %}
+</form>
+
+{% if page.paginator.count %}
+<p class="summary-line">
+    <strong>{{ page.paginator.count }}</strong> record{{ page.paginator.count|pluralize }} ·
+    {{ summary.prepared }} prepared · {{ summary.sold }} sold ·
+    <strong>{{ summary.waste }}</strong> wasted{% if summary.waste_pct is not None %} ({{ summary.waste_pct }}%){% endif %}{% if show_money %} ·
+    <strong>{{ currency }}{{ summary.cost|floatformat:0 }}</strong> estimated waste cost{% endif %}
+    <small class="muted-text">(totals count approved records only)</small>
+</p>
+{% endif %}
+{% endif %}
+
+<section class="card card-flush">
+{% if page.object_list %}
+    <div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Date</th><th>Item</th><th class="num">Prepared</th><th class="num">Sold</th><th class="num">Wasted</th><th class="num">Waste %</th>{% if show_money %}<th class="num">Waste cost</th>{% endif %}<th>Status</th><th>Context</th><th class="num">Actions</th></tr></thead>
+        <tbody>
+        {% for r in page.object_list %}
+            <tr>
+                <td>{{ r.date|date:"d-m-Y" }}</td>
+                <td><strong>{{ r.food_item.name }}</strong></td>
+                <td class="num">{{ r.prepared_quantity }}</td>
+                <td class="num">{{ r.sold_quantity }}</td>
+                <td class="num">{{ r.wasted_quantity }}</td>
+                <td class="num"><span class="pill {% if r.waste_percentage > threshold %}pill-warn{% else %}pill-ok{% endif %}">{{ r.waste_percentage|floatformat:1 }}%</span></td>
+                {% if show_money %}<td class="num">{{ currency }}{{ r.waste_cost|floatformat:0 }}</td>{% endif %}
+                <td><span class="pill {% if r.status == 'approved' %}pill-ok{% elif r.status == 'rejected' %}pill-warn{% else %}pill-muted{% endif %}">{{ r.get_status_display }}</span>
+                    {% if r.status == 'rejected' and r.review_note %}<small class="muted-text" style="display:block">{{ r.review_note }}</small>{% endif %}
+                    {% if r.status == 'submitted' %}<small class="muted-text" style="display:block">Waiting for manager approval</small>{% endif %}</td>
+                <td class="ctx">{{ r.weather }}{% if r.is_holiday %}<small class="tag">Holiday</small>{% endif %}{% if r.event_name %}<small class="tag">{{ r.event_name }}</small>{% endif %}</td>
+                <td class="num">
+                    <div class="row-actions">
+                        {% if perms.predictor.change_foodrecord or r.status == 'draft' or r.status == 'rejected' %}<a href="{% url 'record_edit' r.pk %}" class="icon-btn" title="Edit" aria-label="Edit record for {{ r.food_item.name }} on {{ r.date|date:'d-m-Y' }}"><i data-lucide="pencil"></i></a>{% else %}<span class="icon-btn" title="Locked" aria-label="Locked"><i data-lucide="lock"></i></span>{% endif %}
+                        {% if perms.predictor.delete_foodrecord %}<button type="button" class="icon-btn icon-danger" title="Delete" aria-label="Delete record for {{ r.food_item.name }} on {{ r.date|date:'d-m-Y' }}"
+                            data-confirm-action="{% url 'record_delete' r.pk %}" data-confirm-next="{{ current_url }}"
+                            data-confirm-title="Delete this record?"
+                            data-confirm-text="{{ r.food_item.name }} on {{ r.date|date:'d-m-Y' }} ({{ r.prepared_quantity }} prepared, {{ r.sold_quantity }} sold) will be permanently removed and no longer count toward your totals or forecasts."
+                            data-confirm-button="Delete" data-confirm-tone="danger"><i data-lucide="trash-2"></i></button>{% endif %}
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if page.has_other_pages %}
+    <nav class="pager" aria-label="Pagination">
+        {% if page.has_previous %}<a class="btn btn-ghost btn-sm" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page.previous_page_number }}"><i data-lucide="chevron-left"></i>Previous</a>{% else %}<span></span>{% endif %}
+        <span class="muted-text">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a class="btn btn-ghost btn-sm" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page.next_page_number }}">Next<i data-lucide="chevron-right"></i></a>{% else %}<span></span>{% endif %}
+    </nav>
+    {% endif %}
+{% elif has_any %}
+    {% url 'records' as records_url %}
+    {% include 'predictor/partials/_empty_state.html' with icon='search-x' title='No records match your filters' text='Try a wider date range or a different item.' action_url=records_url action_label='Clear filters' %}
+{% else %}
+    {% url 'add_record' as add_url %}
+    {% include 'predictor/partials/_empty_state.html' with icon='clipboard-list' title='No records yet' text='Log how much of each item you prepared and sold. Everything else in the app builds on these records.' action_url=add_url action_label='Add your first record' %}
+{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'predictor/base.html' %}
+{% load static %}
+{% block title %}Waste analytics{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Analytics</p>
+        <h1>Waste analytics</h1>
+        <p class="sub">Where food is being wasted, what it costs, and what to change.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'reports' %}" class="btn btn-ghost"><i data-lucide="file-bar-chart"></i>Reports</a>
+    </div>
+</header>
+
+{% include 'predictor/partials/_range_filter.html' %}
+
+{% if not has_records %}
+<section class="card">
+    {% if not has_any_records %}
+        {% url 'add_record' as rec_url %}
+        {% include 'predictor/partials/_empty_state.html' with icon='leaf' title='No data to analyse yet' text='Analytics are built from your daily records of food prepared and sold. Add a few days of records to see trends.' action_url=rec_url action_label='Add daily record' %}
+    {% else %}
+        {% include 'predictor/partials/_empty_state.html' with icon='calendar-search' title='No records in this date range' text='Try a wider range to see your earlier records.' action_url='?range=all' action_label='Show all time' %}
+    {% endif %}
+</section>
+{% else %}
+
+<section class="kpis kpis-3" aria-label="Waste summary">
+    {% include 'predictor/partials/_kpi.html' with label='Waste rate' value=totals.waste_pct|default_if_none:'—' suffix='%' delta=deltas.waste_pct delta_tone=deltas.waste_pct.dir hint='Unsold ÷ prepared' %}
+    {% include 'predictor/partials/_kpi.html' with label='Wasted portions' value=totals.waste suffix=' portions' delta=deltas.waste delta_tone=deltas.waste.dir hint='Prepared but not sold' %}
+    {% include 'predictor/partials/_kpi.html' with label='Estimated financial loss' prefix=currency value=totals.cost|floatformat:0 delta=deltas.cost delta_tone=deltas.cost.dir hint='At cost per portion' %}
+</section>
+
+<section class="card">
+    <div class="card-head"><h2>Waste rate over time</h2><span class="muted-text small-text">{% if trend.unit == 'week' %}Weekly{% else %}Daily{% endif %} · red line = alert threshold ({{ threshold }}%)</span></div>
+    <div class="chart-wrap"><canvas id="trend-chart" aria-label="Waste percentage over time"></canvas></div>
+</section>
+
+<div class="grid-two">
+    <section class="card">
+        <div class="card-head"><h2>Most wasted items</h2><span class="muted-text small-text">by food cost</span></div>
+        {% if items_by_cost %}
+        <ul class="bars">
+            {% for i in items_by_cost %}
+            <li>
+                <div class="bar-row"><span>{{ i.name }}</span><strong>{{ currency }}{{ i.cost|floatformat:0 }} <small>· {{ i.waste }} portions · {{ i.waste_pct }}%</small></strong></div>
+                <div class="bar"><span class="fill fill-orange" data-w="{{ i.cost|floatformat:2 }}" data-max="{{ items_max|floatformat:2 }}"></span></div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="muted-text"><i data-lucide="circle-check" class="inline-icon"></i>No waste recorded in this period.</p>{% endif %}
+    </section>
+    <section class="card">
+        <div class="card-head"><h2>Waste by category</h2><span class="muted-text small-text">share of waste cost</span></div>
+        {% if categories %}
+        <ul class="bars">
+            {% for c in categories %}
+            <li>
+                <div class="bar-row"><span>{{ c.name }}</span><strong>{{ c.share }}% <small>· {{ currency }}{{ c.cost|floatformat:0 }}</small></strong></div>
+                <div class="bar"><span class="fill fill-green" data-w="{{ c.share }}" data-max="100"></span></div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="muted-text"><i data-lucide="circle-check" class="inline-icon"></i>No waste recorded in this period.</p>{% endif %}
+    </section>
+</div>
+
+<div class="grid-two">
+    <section class="card">
+        <div class="card-head"><h2>Waste by weekday</h2></div>
+        <div class="chart-wrap chart-sm"><canvas id="weekday-chart" aria-label="Waste percentage by weekday"></canvas></div>
+    </section>
+    <section class="card">
+        <div class="card-head"><h2>Recent comparison</h2></div>
+        {% if compare.week or compare.month %}
+        <div class="table-wrap"><table class="table compact">
+            <thead><tr><th>Period</th><th class="num">Waste rate</th><th class="num">Loss</th></tr></thead>
+            <tbody>
+            {% if compare.week %}
+                <tr><td>Last 7 days</td><td class="num">{{ compare.week.cur.waste_pct }}%{% if compare.week.pct_delta %} <small class="delta {{ compare.week.pct_delta.dir }}">{% if compare.week.pct_delta.dir == 'up' %}▲{% elif compare.week.pct_delta.dir == 'down' %}▼{% endif %} {{ compare.week.pct_delta.value }} pts</small>{% endif %}</td>
+                    <td class="num">{{ currency }}{{ compare.week.cur.cost|floatformat:0 }}{% if compare.week.cost_delta %} <small class="delta {{ compare.week.cost_delta.dir }}">{% if compare.week.cost_delta.dir == 'up' %}▲{% elif compare.week.cost_delta.dir == 'down' %}▼{% endif %} {{ compare.week.cost_delta.value }}%</small>{% endif %}</td></tr>
+                <tr class="is-muted"><td>Previous 7 days</td><td class="num">{{ compare.week.prev.waste_pct }}%</td><td class="num">{{ currency }}{{ compare.week.prev.cost|floatformat:0 }}</td></tr>
+            {% endif %}
+            {% if compare.month %}
+                <tr><td>Last 30 days</td><td class="num">{{ compare.month.cur.waste_pct }}%{% if compare.month.pct_delta %} <small class="delta {{ compare.month.pct_delta.dir }}">{% if compare.month.pct_delta.dir == 'up' %}▲{% elif compare.month.pct_delta.dir == 'down' %}▼{% endif %} {{ compare.month.pct_delta.value }} pts</small>{% endif %}</td>
+                    <td class="num">{{ currency }}{{ compare.month.cur.cost|floatformat:0 }}{% if compare.month.cost_delta %} <small class="delta {{ compare.month.cost_delta.dir }}">{% if compare.month.cost_delta.dir == 'up' %}▲{% elif compare.month.cost_delta.dir == 'down' %}▼{% endif %} {{ compare.month.cost_delta.value }}%</small>{% endif %}</td></tr>
+                <tr class="is-muted"><td>Previous 30 days</td><td class="num">{{ compare.month.prev.waste_pct }}%</td><td class="num">{{ currency }}{{ compare.month.prev.cost|floatformat:0 }}</td></tr>
+            {% endif %}
+            </tbody>
+        </table></div>
+        <p class="note nm"><i data-lucide="info"></i>Counted from today, whatever range is selected above.</p>
+        {% else %}
+        <p class="muted-text"><i data-lucide="info" class="inline-icon"></i>Not enough earlier data to compare yet. Comparisons appear when the previous period has records for at least half as many days.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="card">
+    <div class="card-head"><h2>How to waste less</h2><span class="muted-text small-text">based on your records</span></div>
+    <ul class="suggest">
+        {% for s in suggestions %}
+        <li class="suggest-{{ s.tone }}">
+            <span class="suggest-icon"><i data-lucide="{% if s.tone == 'good' %}sprout{% elif s.tone == 'warn' %}triangle-alert{% else %}lightbulb{% endif %}"></i></span>
+            <div><strong>{{ s.title }}</strong><p>{{ s.body }}</p></div>
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="note nm"><i data-lucide="info"></i>Suggestions assume demand stays like the past. They never account for days when you sold out.</p>
+</section>
+
+{{ trend|json_script:"trend-data" }}
+{{ weekday|json_script:"weekday-data" }}
+<script type="application/json" id="threshold-data">{{ threshold }}</script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if has_records %}
+<script src="{% static 'predictor/vendor/chart.umd.js' %}"></script>
+<script src="{% static 'predictor/js/analytics.js' %}"></script>
+{% endif %}
+{% endblock %}

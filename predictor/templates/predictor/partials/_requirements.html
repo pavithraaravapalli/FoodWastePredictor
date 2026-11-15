@@ -1,0 +1,17 @@
+{% load kitchen %}
+<section class="card card-flush" id="ingredients-needed">
+<div class="card-head pad"><h2>Ingredients needed</h2>
+<form method="get" class="inline-form" data-autosubmit>{% for k, v in keep.items %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<label class="muted-text" for="reserve">Safety reserve</label>
+<select name="reserve" id="reserve" class="input select-auto">{% for p in reserve_options %}<option value="{{ p }}" {% if p == reserve_pct %}selected{% endif %}>{{ p }}%</option>{% endfor %}</select></form></div>
+{% if req.items %}
+<div class="table-wrap"><table class="table"><thead><tr><th>Food item</th><th class="num">Predicted demand</th><th class="num">Prepare</th><th>Ingredient</th><th class="num">Required</th><th class="num">In stock</th>{% if show_cost %}<th class="num">Est. cost</th>{% endif %}</tr></thead><tbody>
+{% for it in req.items %}{% for r in it.rows %}<tr>
+{% if forloop.first %}<td rowspan="{{ it.rows|length }}"><strong>{{ it.item.name }}</strong><br><a class="link-sm" href="{% url 'recipe_detail' it.recipe.pk %}">{{ it.recipe.name }}</a></td><td class="num" rowspan="{{ it.rows|length }}">{{ it.demand|default_if_none:"—" }}</td><td class="num" rowspan="{{ it.rows|length }}">{{ it.quantity }}</td>{% endif %}
+<td>{{ r.ingredient.name }}</td><td class="num">{{ r.required|qty:r.ingredient.base_unit }}</td><td class="num">{{ r.ingredient.current_stock|qty:r.ingredient.base_unit }}</td>{% if show_cost %}<td class="num">{{ currency }}{{ r.cost|money }}</td>{% endif %}</tr>{% endfor %}{% endfor %}</tbody></table></div>
+<div class="pad"><h3>Shopping needs</h3><div class="table-wrap"><table class="table"><thead><tr><th>Ingredient</th><th class="num">Total required</th><th class="num">Available</th><th class="num">Additional needed</th>{% if show_cost %}<th class="num">Cost to buy</th>{% endif %}</tr></thead><tbody>
+{% for s in req.shopping %}<tr><td>{{ s.ingredient.name }}</td><td class="num">{{ s.required|qty:s.ingredient.base_unit }}</td><td class="num">{{ s.available|qty:s.ingredient.base_unit }}</td><td class="num">{% if s.shortage %}<span class="pill pill-warn">{{ s.shortage|qty:s.ingredient.base_unit }}</span>{% else %}<span class="pill pill-ok">Enough</span>{% endif %}</td>{% if show_cost %}<td class="num">{{ currency }}{{ s.to_buy_cost|money }}</td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+{% if show_cost %}<p class="muted-text">Estimated ingredient cost {{ currency }}{{ req.total_cost|money }} · to purchase {{ currency }}{{ req.purchase_cost|money }}. Based on current purchase costs and stock.</p>{% endif %}</div>
+{% elif not req.missing_recipes %}<div class="pad"><p class="muted-text">No quantities to convert yet.</p></div>{% endif %}
+{% if req.missing_recipes %}<p class="alert alert-warn"><i data-lucide="triangle-alert"></i><span><strong>No recipe for {% for i in req.missing_recipes %}{{ i.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</strong> Their ingredient needs are not calculated (nothing is estimated). {% if perms.predictor.add_recipe %}<a href="{% url 'recipes' %}">Create the recipe</a>.{% else %}Ask the owner or a manager to create one.{% endif %}</span></p>{% endif %}
+</section>

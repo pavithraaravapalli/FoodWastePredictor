@@ -1,0 +1,35 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div><p class="eyebrow">Inbox</p><h1>Notifications</h1><p class="sub">Things that need you or that changed on your records.</p></div>
+</header>
+
+{% if pending or rejected or approved or plan or pending_signups %}
+{% if pending %}
+<section class="card"><h2>Waiting for your approval <span class="pill pill-info">{{ pending|length }}</span></h2>
+    <ul class="list-rows">{% for r in pending %}<li><span><strong>{{ r.food_item.name }}</strong> · {{ r.date|date:"d-m-Y" }} · by {% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}unknown{% endif %}</span></li>{% endfor %}</ul>
+    <a href="{% url 'approvals' %}" class="btn btn-primary btn-sm">Review now</a></section>
+{% endif %}
+{% if pending_signups %}
+<section class="card"><h2>New sign-ups <span class="pill pill-info">{{ pending_signups }}</span></h2>
+    <p class="muted-text">People asked for an account and are waiting for you.</p>
+    <a href="{% url 'user_list' %}?status=pending" class="btn btn-primary btn-sm">Review sign-ups</a></section>
+{% endif %}
+{% if rejected %}
+<section class="card"><h2>Rejected records <span class="pill pill-warn">{{ rejected|length }}</span></h2>
+    <ul class="list-rows">{% for r in rejected %}<li><span><strong>{{ r.food_item.name }}</strong> · {{ r.date|date:"d-m-Y" }}<small class="muted-text" style="display:block">{{ r.review_note|default:"No reason given" }}</small></span><a href="{% url 'record_edit' r.pk %}" class="btn btn-ghost btn-sm">Fix and resubmit</a></li>{% endfor %}</ul></section>
+{% endif %}
+{% if approved %}
+<section class="card"><h2>Recently approved</h2>
+    <ul class="list-rows">{% for r in approved %}<li><span><strong>{{ r.food_item.name }}</strong> · {{ r.date|date:"d-m-Y" }}</span><small class="muted-text">approved {{ r.approved_at|date:"d-m-Y H:i" }}</small></li>{% endfor %}</ul></section>
+{% endif %}
+{% if plan %}
+<section class="card"><h2>Today's approved plan</h2>
+    <ul class="list-rows">{% for l in plan %}<li><span>{{ l.food_item.name }}</span><strong>{{ l.quantity_to_prepare }} portions</strong></li>{% endfor %}</ul></section>
+{% endif %}
+{% else %}
+<section class="card">{% include 'predictor/partials/_empty_state.html' with icon='bell' title="You're all caught up" text='Nothing needs your attention right now.' %}</section>
+{% endif %}
+{% endblock %}

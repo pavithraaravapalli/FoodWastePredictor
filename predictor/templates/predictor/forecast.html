@@ -1,0 +1,171 @@
+{% extends 'predictor/base.html' %}
+{% load static %}
+{% block title %}Demand forecast{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Forecast</p>
+        <h1>Demand forecast</h1>
+        <p class="sub">Expected demand and how much to prepare, based on your own sales history.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'planner' %}" class="btn btn-ghost"><i data-lucide="chef-hat"></i>Preparation planner</a>
+    </div>
+</header>
+
+<form method="get" class="card fc-form" data-loading-form data-busy-text="Calculating…">
+    <div class="fc-fields">
+        <div class="field">
+            <label for="fc-date">Forecast date</label>
+            <input type="date" id="fc-date" name="date" value="{{ inputs.date|date:'Y-m-d' }}" class="input" required>
+        </div>
+        <div class="field">
+            <label for="fc-item">Food item</label>
+            <select id="fc-item" name="item" class="input">
+                <option value="all" {% if selected_item == 'all' %}selected{% endif %}>All active items</option>
+                {% for i in items %}<option value="{{ i.pk }}" {% if selected_item == i.pk|stringformat:'s' %}selected{% endif %}>{{ i.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="fc-weather">Expected weather <span class="optional">optional</span></label>
+            <input type="text" id="fc-weather" name="weather" value="{{ inputs.weather }}" list="weather-options" class="input" placeholder="e.g. Rainy">
+            <datalist id="weather-options"><option value="Sunny"><option value="Cloudy"><option value="Rainy"><option value="Stormy"><option value="Hot"><option value="Cold"><option value="Foggy"></datalist>
+            <p class="field-hint">{% if inputs.weather_source %}Filled from {{ inputs.weather_source }}. Clear it to ignore it. {% endif %}<a href="{% url 'weather' %}" class="link-sm">Weather</a></p>
+        </div>
+        <div class="field">
+            <label for="fc-event">Special event <span class="optional">optional</span></label>
+            <input type="text" id="fc-event" name="event" value="{{ inputs.event }}" class="input" placeholder="e.g. Local fair">
+            <p class="field-hint">{% if inputs.event_source %}Filled from local events: {{ inputs.event_source }}. {% endif %}<a href="{% url 'events' %}" class="link-sm">Local events</a></p>
+        </div>
+    </div>
+    <div class="fc-fields fc-fields-2">
+        <div class="field">
+            <label for="fc-traffic">Expected traffic <span class="optional">optional</span></label>
+            <select id="fc-traffic" name="traffic" class="input">
+                <option value="">Not entered</option>
+                {% for value, label in traffic_choices %}<option value="{{ value }}" {% if inputs.traffic == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <p class="field-hint">{% if traffic_days %}Compared with {{ traffic_days }} past day{{ traffic_days|pluralize }} with traffic recorded.{% else %}No past traffic recorded yet, so this won't change the forecast. <a href="{% url 'traffic' %}" class="link-sm">Record traffic</a>{% endif %}</p>
+        </div>
+    </div>
+    <div class="fc-bar">
+        <label class="check" for="fc-holiday"><input type="checkbox" id="fc-holiday" name="holiday" value="1" class="checkbox" {% if inputs.holiday %}checked{% endif %}><span>Public holiday</span></label>
+        <button type="submit" name="generate" value="1" class="btn btn-primary"><i data-lucide="sparkles"></i><span>Generate forecast</span></button>
+    </div>
+</form>
+
+{% if not generated %}
+    <section class="card">
+    {% if not items %}
+        {% url 'food_item_add' as add_url %}
+        {% include 'predictor/partials/_empty_state.html' with icon='package' title='Add a food item first' text='Forecasts are made per food item. Add your menu, then log a few days of preparation and sales.' action_url=add_url action_label='Add a food item' %}
+    {% elif not has_records %}
+        {% url 'add_record' as rec_url %}
+        {% include 'predictor/partials/_empty_state.html' with icon='clipboard-list' title='Log some history to forecast from' text='Forecasts learn from what you have sold before. Three or more daily records per item are needed to get started.' action_url=rec_url action_label='Add daily record' %}
+    {% else %}
+        <div class="fc-howto">
+            <span class="empty-icon"><i data-lucide="trending-up"></i></span>
+            <div>
+                <h3>Pick a date and generate</h3>
+                <p>The forecast averages the same weekday from your recent records, then adjusts for weather, holiday or event only when your history shows a clear pattern. It always explains what it used.</p>
+            </div>
+        </div>
+    {% endif %}
+    </section>
+{% else %}
+
+    {% if single %}
+    <section class="fc-hero">
+        <div class="fc-hero-main">
+            <p class="eyebrow">{{ single.item.name }} · {{ single.target|date:"l, d-m-Y" }}</p>
+            <div class="fc-numbers">
+                <div><span class="fc-num">{{ single.expected }}</span><span class="fc-cap">Expected demand</span></div>
+                <div class="fc-plus">+</div>
+                <div><span class="fc-num fc-num-soft">{{ single.reserve }}</span><span class="fc-cap">Safety reserve</span></div>
+                <div class="fc-plus">=</div>
+                <div class="fc-prepare"><span class="fc-num">{{ single.recommended }}</span><span class="fc-cap">Prepare</span></div>
+            </div>
+            <p class="fc-method"><i data-lucide="calculator"></i>{{ single.method_label }}{% if single.ratio != 1 %} · adjusted ×{{ single.ratio|floatformat:2 }}{% endif %}</p>
+        </div>
+        <div class="fc-hero-side">
+            {% include 'predictor/partials/_reliability.html' with r=single.reliability %}
+            {% if single.recent_prepared is not None %}
+            <ul class="fc-recent">
+                <li><span>Recently prepared (avg)</span><strong>{{ single.recent_prepared|floatformat:0 }}</strong></li>
+                <li><span>Recently sold (avg)</span><strong>{{ single.recent_sold|floatformat:0 }}</strong></li>
+                {% if single.recent_waste_pct is not None %}<li><span>Recent waste</span><strong>{{ single.recent_waste_pct }}%</strong></li>{% endif %}
+            </ul>
+            {% endif %}
+        </div>
+    </section>
+    <div class="grid-main">
+        <section class="card">
+            <div class="card-head"><h2>Recent sales vs forecast</h2>
+                <span class="legend"><i class="dot dot-sold"></i>Sold <i class="dot dot-fc"></i>Expected <i class="dot dot-waste"></i>Prepare</span></div>
+            <div class="chart-wrap"><canvas id="fc-chart" aria-label="Recent sales and the forecast"></canvas></div>
+        </section>
+        <section class="card">
+            {% include 'predictor/partials/_forecast_explain.html' with f=single %}
+        </section>
+    </div>
+    {{ single.chart|json_script:"fc-chart-data" }}
+    {% else %}
+    <section class="card card-flush">
+        <div class="fc-list-head"><span>Item</span><span class="num">Expected</span><span class="num">Reserve</span><span class="num">Prepare</span><span>Typical error</span><span></span></div>
+        {% for f in results %}
+        <details class="fc-row" {% if results|length == 1 %}open{% endif %}>
+            <summary>
+                <span class="fc-name"><strong>{{ f.item.name }}</strong><small>{{ f.item.category }}</small></span>
+                {% if f.ok %}
+                <span class="num">{{ f.expected }}</span>
+                <span class="num">+{{ f.reserve }}</span>
+                <span class="num fc-big">{{ f.recommended }}</span>
+                <span>{% if f.reliability %}<span class="pill {% if f.reliability.level == 'Low' %}pill-warn{% else %}pill-ok{% endif %}">±{{ f.reliability.pct }}%</span>{% else %}<small class="muted-text">Not enough to test</small>{% endif %}</span>
+                {% else %}
+                <span class="fc-nodata">Not enough history ({{ f.n_history }} of {{ min_sample }} records)</span>
+                {% endif %}
+                <i data-lucide="chevron-down" class="fc-chevron"></i>
+            </summary>
+            <div class="fc-detail">
+                {% if f.ok %}{% include 'predictor/partials/_forecast_explain.html' with f=f %}
+                {% else %}
+                    <p class="muted-text">{{ f.notes.0 }}</p>
+                    <a href="{% url 'add_record' %}" class="btn btn-ghost btn-sm">Add a record</a>
+                {% endif %}
+            </div>
+        </details>
+        {% empty %}
+            {% include 'predictor/partials/_empty_state.html' with icon='package' title='No active food items' text='Add or reactivate food items to forecast them.' %}
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if any_ok %}
+    <section class="card fc-save">
+        <div>
+            <h3>Add to preparation plan</h3>
+            <p class="muted-text">Saves {% if single %}this forecast{% else %}these forecasts{% endif %} for {{ inputs.date|date:"d-m-Y" }} so the kitchen can review and approve the quantities.{% for r in results %}{% if r.saved and r.saved.status != 'suggested' %} Already approved lines are left unchanged.{% endif %}{% endfor %}</p>
+        </div>
+        <form method="post" action="{% url 'forecast_save' %}" data-loading-form data-busy-text="Saving…">
+            {% csrf_token %}
+            <input type="hidden" name="date" value="{{ inputs.date|date:'Y-m-d' }}">
+            <input type="hidden" name="item" value="{{ selected_item }}">
+            <input type="hidden" name="weather" value="{{ inputs.weather }}">
+            <input type="hidden" name="event" value="{{ inputs.event }}">
+            <input type="hidden" name="traffic" value="{{ inputs.traffic }}">
+            {% if inputs.holiday %}<input type="hidden" name="holiday" value="1">{% endif %}
+            <button type="submit" class="btn btn-primary"><i data-lucide="clipboard-check"></i><span>Save to plan</span></button>
+        </form>
+    </section>
+    {% endif %}
+    {% if req %}{% include 'predictor/partials/_requirements.html' %}{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if single %}
+<script src="{% static 'predictor/vendor/chart.umd.js' %}"></script>
+<script src="{% static 'predictor/js/forecast.js' %}"></script>
+{% endif %}
+{% endblock %}

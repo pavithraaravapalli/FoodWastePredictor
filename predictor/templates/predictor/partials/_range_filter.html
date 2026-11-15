@@ -1,0 +1,17 @@
+<form method="get" class="filter-bar" id="range-form">
+    <div class="segmented" role="group" aria-label="Date range">
+        <a href="?range=7" class="{% if range_key == '7' %}is-on{% endif %}">7 days</a>
+        <a href="?range=30" class="{% if range_key == '30' %}is-on{% endif %}">30 days</a>
+        <a href="?range=90" class="{% if range_key == '90' %}is-on{% endif %}">90 days</a>
+        <a href="?range=all" class="{% if range_key == 'all' %}is-on{% endif %}">All time</a>
+    </div>
+    <div class="custom-range {% if range_key == 'custom' %}is-on{% endif %}">
+        <label class="sr-only" for="start">From</label>
+        <input type="date" id="start" name="start" class="input" value="{{ start|date:'Y-m-d' }}" required>
+        <span>to</span>
+        <label class="sr-only" for="end">To</label>
+        <input type="date" id="end" name="end" class="input" value="{{ end|date:'Y-m-d' }}" required>
+        <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+    </div>
+</form>
+{% if range_notice %}<p class="note"><i data-lucide="info"></i>{{ range_notice }}</p>{% endif %}

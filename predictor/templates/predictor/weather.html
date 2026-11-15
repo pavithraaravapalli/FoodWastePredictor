@@ -1,0 +1,106 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Weather{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div>
+        <p class="eyebrow">Outside conditions</p>
+        <h1>Weather intelligence</h1>
+        <p class="sub">Weather near {{ restaurant_obj.name }}, used by the demand forecast when it is available.</p>
+    </div>
+    <div class="head-actions">
+        {% if mode == 'auto' and can_add and restaurant_obj.has_location %}
+        <form method="post" action="{% url 'weather_refresh' %}" data-loading-form data-busy-text="Fetching…">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost"><i data-lucide="refresh-cw"></i>Refresh now</button></form>
+        {% endif %}
+    </div>
+</header>
+
+{% include 'predictor/partials/_mode_switch.html' %}
+
+{% if fetch_error %}<p class="alert alert-warn"><i data-lucide="triangle-alert"></i><span>{{ fetch_error }} Showing the last saved information; you can enter weather by hand below.</span></p>{% endif %}
+{% if mode == 'auto' and not restaurant_obj.has_location %}
+    <p class="alert alert-warn"><i data-lucide="map-pin-off"></i><span>Automatic weather needs the restaurant's latitude and longitude. <a href="{% url 'settings' %}?tab=restaurant">Set the location</a>.</span></p>
+{% endif %}
+
+<div class="grid-main">
+    <section class="card">
+        <div class="card-head"><h2>Current conditions</h2></div>
+        {% if current %}
+        <div class="reading">
+            <span class="cond cond-{% if current.condition == 'rainy' or current.condition == 'stormy' %}heavy{% elif current.condition == 'cloudy' %}moderate{% else %}free{% endif %}"><i class="cond-dot"></i>{{ current.get_condition_display }}</span>
+            <dl class="reading-facts">
+                {% if current.temperature_c is not None %}<div><dt>Temperature</dt><dd>{{ current.temperature_c }} °C</dd></div>{% endif %}
+                {% if current.precipitation_mm is not None %}<div><dt>Rainfall now</dt><dd>{{ current.precipitation_mm }} mm</dd></div>{% endif %}
+                {% if current.humidity_pct is not None %}<div><dt>Humidity</dt><dd>{{ current.humidity_pct }}%</dd></div>{% endif %}
+                {% if current.wind_kmh is not None %}<div><dt>Wind</dt><dd>{{ current.wind_kmh }} km/h</dd></div>{% endif %}
+                <div><dt>Source</dt><dd>{% if current.is_automatic %}Automatic · {{ current.provider }}{% else %}Manual entry{% endif %}</dd></div>
+                <div><dt>Last updated</dt><dd>{{ current.observed_at|date:"d-m-Y H:i" }}</dd></div>
+                {% if current.notes %}<div><dt>Note</dt><dd>{{ current.notes }}</dd></div>{% endif %}
+            </dl>
+            {% if current_state == 'stale' %}<p class="alert alert-warn"><i data-lucide="clock"></i><span>{{ current_msg }}</span></p>{% endif %}
+        </div>
+        {% else %}
+        <p class="muted-text"><i data-lucide="info" class="inline-icon"></i>Weather is unavailable: nothing has been recorded yet. {% if mode == 'auto' %}The next successful fetch will appear here.{% else %}Enter today's weather on the right.{% endif %} Forecasts still work from sales history alone.</p>
+        {% endif %}
+        {% if mode == 'auto' %}<p class="field-hint">Source: {{ provider }}. Open-Meteo is free for non-commercial use only; see their terms.</p>{% endif %}
+    </section>
+
+    <section class="card">
+        <div class="card-head"><h2>Upcoming forecast</h2></div>
+        {% if outlook %}
+        <ul class="obs-list">
+            {% for o in outlook %}
+            <li>
+                <span class="obs-meta"><strong>{{ o.target_date|date:"D, d-m-Y" }}</strong>
+                    <small class="muted-text">{{ o.get_condition_display }}{% if o.temp_max_c is not None %} · {{ o.temp_min_c }}–{{ o.temp_max_c }} °C{% endif %}{% if o.precipitation_probability is not None %} · {{ o.precipitation_probability }}% rain chance{% endif %}{% if o.precipitation_mm is not None %} · {{ o.precipitation_mm }} mm{% endif %}</small></span>
+                <span class="pill pill-off">Auto</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="field-hint">Last updated {{ outlook.0.fetched_at|date:"d-m-Y H:i" }}.</p>
+        {% else %}
+        <p class="muted-text">No automatic forecast stored. {% if mode == 'manual' %}Switch to automatic mode to fetch one, or add days by hand.{% endif %}</p>
+        {% endif %}
+        {% if manual_days %}
+        <h3 class="subhead">Entered by hand (upcoming)</h3>
+        <ul class="obs-list">{% for o in manual_days %}<li><span class="obs-meta"><strong>{{ o.target_date|date:"d-m-Y" }}</strong><small class="muted-text">{{ o.get_condition_display }}{% if o.temperature_c is not None %} · {{ o.temperature_c }} °C{% endif %}{% if o.notes %} · {{ o.notes }}{% endif %}</small></span><span class="pill pill-ok">Manual</span></li>{% endfor %}</ul>
+        {% endif %}
+    </section>
+</div>
+
+<div class="grid-main">
+    {% if can_add %}
+    <section class="card">
+        <div class="card-head"><h2>Enter weather manually</h2></div>
+        <form method="post" action="{% url 'weather_add' %}" novalidate data-loading-form data-busy-text="Saving…" class="stack">
+            {% csrf_token %}
+            <fieldset class="field role-field"><legend>Condition</legend>
+                <div class="cond-grid">{% for radio in form.condition %}<label class="role-card" for="{{ radio.id_for_label }}">{{ radio.tag }}<span class="role-body"><strong>{{ radio.choice_label }}</strong></span></label>{% endfor %}</div>
+            </fieldset>
+            <div class="two-col">
+                <div class="field"><label for="{{ form.target_date.id_for_label }}">Day</label>{{ form.target_date }}</div>
+                <div class="field"><label for="{{ form.temperature_c.id_for_label }}">Temperature (°C) <span class="optional">optional</span></label>{{ form.temperature_c }}</div>
+            </div>
+            <div class="field"><label for="{{ form.notes.id_for_label }}">Notes <span class="optional">optional</span></label>{{ form.notes }}</div>
+            <div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="plus"></i><span>Save weather</span></button></div>
+        </form>
+        <p class="note nm"><i data-lucide="info"></i>A manual entry for a day takes priority over the automatic forecast for that day. Nothing is overwritten: every entry is kept in the history.</p>
+    </section>
+    {% endif %}
+
+    <section class="card card-flush">
+        <div class="card-head pad"><h2>Weather history</h2></div>
+        {% if page.object_list %}
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>When</th><th>Condition</th><th class="num">Temp °C</th><th class="num">Rain mm</th><th>Source</th></tr></thead>
+            <tbody>{% for o in page.object_list %}<tr>
+                <td>{{ o.observed_at|date:"d-m-Y H:i" }}</td><td>{{ o.get_condition_display }}</td>
+                <td class="num">{{ o.temperature_c|default_if_none:"–" }}</td><td class="num">{{ o.precipitation_mm|default_if_none:"–" }}</td>
+                <td>{% if o.is_automatic %}Auto · {{ o.provider }}{% else %}Manual{% if o.created_by %} · {{ o.created_by.first_name|default:o.created_by.username }}{% endif %}{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% include 'predictor/partials/_pager.html' %}
+        {% else %}<div class="pad"><p class="muted-text">No weather history yet.</p></div>{% endif %}
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+<dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+    <form method="post" id="confirm-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="" id="confirm-next">
+        <div class="dialog-icon"><i data-lucide="triangle-alert"></i></div>
+        <h3 id="confirm-title">Are you sure?</h3>
+        <p id="confirm-text"></p>
+        <div class="dialog-actions">
+            <button type="button" class="btn btn-ghost" data-dialog-cancel>Cancel</button>
+            <button type="submit" class="btn btn-danger" id="confirm-submit">Confirm</button>
+        </div>
+    </form>
+</dialog>

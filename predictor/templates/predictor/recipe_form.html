@@ -1,0 +1,15 @@
+{% extends 'predictor/base.html' %}
+{% block title %}{% if recipe %}Edit recipe{% else %}Create recipe{% endif %}{% endblock %}
+{% block content %}
+<header class="page-head"><div><p class="eyebrow"><a href="{% url 'recipes' %}" class="back-link"><i data-lucide="arrow-left"></i>Recipes</a></p><h1>{% if recipe %}Edit recipe for {{ recipe.food_item.name }}{% else %}Create a recipe{% endif %}</h1>
+<p class="sub">Enter quantities for the whole recipe and how many portions it makes. Example: 10 samosas = 400 g potato, 100 g peas…</p></div></header>
+<form method="post" class="card form-card" novalidate data-loading-form>{% csrf_token %}
+{% if form.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+<div class="form-grid">{% for f in form.visible_fields %}<div class="field{% if f.name == 'instructions' %} span-2{% endif %}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if not f.field.required %} <span class="optional">optional</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>{% endfor %}</div>
+<h2 class="section-title">Ingredients</h2>
+{{ formset.management_form }}{% if formset.non_form_errors %}<div class="form-error" role="alert"><span>{{ formset.non_form_errors|join:" " }}</span></div>{% endif %}
+<div class="table-wrap"><table class="table"><thead><tr><th>Ingredient</th><th>Quantity</th><th>Unit</th><th>Prep loss %</th><th>{% if recipe %}Remove{% endif %}</th></tr></thead><tbody>
+{% for f in formset %}<tr>{% for h in f.hidden_fields %}{{ h }}{% endfor %}<td>{{ f.ingredient }}{% for e in f.ingredient.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</td><td>{{ f.quantity }}{% for e in f.quantity.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</td><td>{{ f.unit }}{% for e in f.unit.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</td><td>{{ f.loss_percent }}{% for e in f.loss_percent.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</td><td>{% if f.instance.pk %}<label class="check">{{ f.DELETE }}<span>Remove</span></label>{% endif %}{% for e in f.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}</td></tr>{% endfor %}</tbody></table></div>
+<p class="hint">Need more rows? Save, then edit the recipe again to add more. Units must match the ingredient: mass for g/kg, volume for ml/l, count for pieces.</p>
+<div class="form-actions"><button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>Save recipe</span></button><a href="{% url 'recipes' %}" class="btn btn-ghost">Cancel</a></div></form>
+{% endblock %}

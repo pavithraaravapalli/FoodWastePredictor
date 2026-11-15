@@ -1,0 +1,12 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>No permission · FoodWastePredictor</title>
+<link rel="stylesheet" href="{% static 'predictor/style.css' %}"></head>
+<body class="auth-body"><main class="auth-panel" style="min-height:100vh">
+<div class="auth-card auth-done">
+    <span class="empty-icon"><i data-lucide="lock"></i></span>
+    <h1>No permission</h1>
+    <p class="auth-sub">You do not have permission to perform this action.</p>
+    <a href="{% url 'dashboard' %}" class="btn btn-primary btn-block">Back to overview</a>
+</div></main>
+<script src="{% static 'predictor/vendor/lucide.min.js' %}"></script><script>lucide.createIcons()</script></body></html>

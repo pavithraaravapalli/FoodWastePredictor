@@ -1,0 +1,11 @@
+{% extends 'predictor/base.html' %}
+{% block title %}New preparation batch{% endblock %}
+{% block content %}
+<header class="page-head"><div><p class="eyebrow"><a href="{% url 'kitchen' %}" class="back-link"><i data-lucide="arrow-left"></i>Kitchen</a></p><h1>New preparation batch</h1>
+<p class="sub">Assign a batch to a team member. Expected ingredients are calculated from the recipe; they record what they actually use.{% if plan %} Prefilled from the plan for {{ plan.food_item.name }}.{% endif %}</p></div></header>
+<form method="post" class="card form-card" novalidate data-loading-form>{% csrf_token %}
+{% if form.non_field_errors %}<div class="form-error" role="alert"><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+<div class="form-grid">{% for f in form.visible_fields %}<div class="field{% if f.name == 'notes' %} span-2{% endif %}"><label for="{{ f.id_for_label }}">{{ f.label }}{% if not f.field.required %} <span class="optional">optional</span>{% endif %}</label>{{ f }}{% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}</div>{% endfor %}</div>
+<p class="hint">Only food items with an active recipe appear here.</p>
+<div class="form-actions"><button class="btn btn-primary"><i data-lucide="check"></i><span>Create batch</span></button><a href="{% url 'kitchen' %}" class="btn btn-ghost">Cancel</a></div></form>
+{% endblock %}

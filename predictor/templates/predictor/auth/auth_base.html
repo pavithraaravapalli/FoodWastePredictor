@@ -1,0 +1,45 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sign in{% endblock %} · FoodWastePredictor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="{% static 'predictor/style.css' %}">
+</head>
+<body class="auth-body">
+<div class="auth">
+    <aside class="auth-hero">
+        <a href="{% url 'login' %}" class="brand brand-light">
+            <span class="brand-mark"><i data-lucide="leaf"></i></span>
+            <span class="brand-text"><strong>FoodWastePredictor</strong></span>
+        </a>
+        <div class="hero-copy">
+            <h2>Prepare what you'll sell.<br>Waste a lot less.</h2>
+            <p>Track daily preparation and sales, see where food is wasted, and plan tomorrow with real numbers.</p>
+            <ul class="hero-points">
+                <li><i data-lucide="clipboard-list"></i>Log daily preparation and sales in seconds</li>
+                <li><i data-lucide="leaf"></i>See waste and its cost per item</li>
+                <li><i data-lucide="trending-up"></i>Forecast demand from your own history</li>
+            </ul>
+        </div>
+        <small class="hero-foot">Built for cafés, restaurants and highway dhabas.</small>
+    </aside>
+
+    <main class="auth-panel">
+        <div class="auth-card">
+            {% if messages %}
+                {% include 'predictor/partials/_messages.html' %}
+            {% endif %}
+            {% block card %}{% endblock %}
+        </div>
+    </main>
+</div>
+<script src="{% static 'predictor/vendor/lucide.min.js' %}"></script>
+<script src="{% static 'predictor/js/app.js' %}"></script>
+<script src="{% static 'predictor/js/auth.js' %}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

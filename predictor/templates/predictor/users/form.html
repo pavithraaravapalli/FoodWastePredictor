@@ -1,0 +1,37 @@
+{% extends 'predictor/base.html' %}
+{% block title %}{% if target %}Edit user{% else %}Add user{% endif %}{% endblock %}
+
+{% block content %}
+<header class="page-head"><div><p class="eyebrow">Team</p><h1>{% if target %}Edit {{ target.username }}{% else %}Add user{% endif %}</h1>
+    <p class="sub">{% if target %}Change details, role and extra permissions.{% else %}Create a team member. Only an owner can create managers and owners.{% endif %}</p></div></header>
+
+<form method="post" class="card form-card" novalidate data-loading-form>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-error" role="alert"><i data-lucide="circle-alert"></i><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+    <div class="form-grid">
+        {% for f in form.visible_fields %}{% if f.name != 'manage_items' and f.name != 'view_activity' and f.name != 'enter_conditions' %}
+        <div class="field">
+            <label for="{{ f.id_for_label }}">{{ f.label }}</label>
+            {{ f }}
+            {% if f.help_text %}<p class="muted-text">{{ f.help_text }}</p>{% endif %}
+            {% for e in f.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        {% endif %}{% endfor %}
+    </div>
+    {% if form.editing_self %}<p class="note-box"><i data-lucide="shield"></i><span>You can't change your own role. Ask another owner if it needs to change.</span></p>{% endif %}
+    {% if form.protected %}<p class="note-box"><i data-lucide="shield"></i><span>This is the primary owner (superuser) account, so its role is protected.</span></p>{% endif %}
+
+    <div class="perm-box">
+        <strong>Extra permissions</strong>
+        <p class="muted-text">On top of the role. Not needed for owners, who can already do everything.</p>
+        <label class="check" for="{{ form.manage_items.id_for_label }}">{{ form.manage_items }}<span>{{ form.manage_items.label }}</span></label>
+        <label class="check" for="{{ form.view_activity.id_for_label }}">{{ form.view_activity }}<span>{{ form.view_activity.label }}</span></label>
+        <label class="check" for="{{ form.enter_conditions.id_for_label }}">{{ form.enter_conditions }}<span>{{ form.enter_conditions.label }}</span></label>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i><span>{% if target %}Save changes{% else %}Create user{% endif %}</span></button>
+        <a href="{% url 'user_list' %}" class="btn btn-ghost">Cancel</a>
+    </div>
+</form>
+{% endblock %}

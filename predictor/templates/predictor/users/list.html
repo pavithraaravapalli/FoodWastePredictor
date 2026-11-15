@@ -1,0 +1,77 @@
+{% extends 'predictor/base.html' %}
+{% block title %}Team{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <div><p class="eyebrow">Settings</p><h1>Team</h1><p class="sub">Add people, choose their role and control who can sign in.</p></div>
+    <div class="head-actions"><a href="{% url 'user_add' %}" class="btn btn-primary"><i data-lucide="user-plus"></i>Add user</a></div>
+</header>
+
+{% if pending_count and status != 'pending' %}
+<p class="note-box"><i data-lucide="bell"></i><span><strong>{{ pending_count }}</strong> sign-up{{ pending_count|pluralize }} waiting for approval. <a href="?status=pending" class="link-sm">Review</a></span></p>
+{% endif %}
+
+<form method="get" class="filter-bar filter-grid" data-autosubmit>
+    <div class="search"><i data-lucide="search"></i><input type="search" name="q" value="{{ q }}" class="input" placeholder="Search name, username or email" aria-label="Search users"></div>
+    <select name="role" class="input select-auto" aria-label="Role">
+        <option value="">All roles</option>{% for key, label in roles %}<option value="{{ key }}" {% if role == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="status" class="input select-auto" aria-label="Status">
+        <option value="">All statuses</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+        <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending approval</option>
+        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Deactivated</option>
+    </select>
+    <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+</form>
+
+<section class="card card-flush">
+{% if page.object_list %}
+    <div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th class="num">Actions</th></tr></thead>
+        <tbody>
+        {% for u in page.object_list %}
+        <tr>
+            <td><strong>{{ u.get_full_name|default:"—" }}</strong>{% if u.pk == me.pk %} <small class="muted-text">(you)</small>{% endif %}</td>
+            <td>{{ u.username }}</td>
+            <td>{{ u.email|default:"—" }}</td>
+            <td><span class="pill {% if u.role_key == 'owner' %}pill-warn{% elif u.role_key == 'manager' %}pill-info{% else %}pill-muted{% endif %}">{{ u.role_key|capfirst }}</span></td>
+            <td>{% if u.is_active %}<span class="pill pill-ok">Active</span>{% elif u.profile.is_pending %}<span class="pill pill-info">Pending approval</span>{% else %}<span class="pill pill-off">Deactivated</span>{% endif %}</td>
+            <td>{{ u.date_joined|date:"d-m-Y" }}</td>
+            <td class="num"><div class="row-actions">
+                {% if u.profile.is_pending %}
+                <form method="post" action="{% url 'user_approve' u.pk %}">{% csrf_token %}<button class="btn btn-primary btn-sm" name="decision" value="approve">Approve</button></form>
+                <button type="button" class="btn btn-ghost btn-sm" data-confirm-action="{% url 'user_approve' u.pk %}" data-confirm-fields="decision=decline"
+                        data-confirm-title="Decline this sign-up?" data-confirm-text="{{ u.email }} will be removed. They can request an account again." data-confirm-button="Decline" data-confirm-tone="danger">Decline</button>
+                {% else %}
+                <a href="{% url 'user_edit' u.pk %}" class="icon-btn" title="Edit" aria-label="Edit {{ u.username }}"><i data-lucide="pencil"></i></a>
+                {% if u.is_active %}
+                <form method="post" action="{% url 'user_send_reset' u.pk %}">{% csrf_token %}<button class="icon-btn" title="Send password reset email" aria-label="Send password reset email to {{ u.username }}"><i data-lucide="key-round"></i></button></form>
+                {% endif %}
+                {% if u.pk != me.pk and not u.is_superuser %}
+                <button type="button" class="icon-btn {% if u.is_active %}icon-danger{% endif %}" title="{% if u.is_active %}Deactivate{% else %}Reactivate{% endif %}" aria-label="{% if u.is_active %}Deactivate{% else %}Reactivate{% endif %} {{ u.username }}"
+                    data-confirm-action="{% url 'user_toggle_active' u.pk %}"
+                    data-confirm-title="{% if u.is_active %}Deactivate {{ u.username }}?{% else %}Reactivate {{ u.username }}?{% endif %}"
+                    data-confirm-text="{% if u.is_active %}They will no longer be able to sign in. Their records and history are kept, and you can reactivate them later.{% else %}They will be able to sign in again.{% endif %}"
+                    data-confirm-button="{% if u.is_active %}Deactivate{% else %}Reactivate{% endif %}" data-confirm-tone="{% if u.is_active %}danger{% else %}ok{% endif %}"><i data-lucide="{% if u.is_active %}user-x{% else %}user-check{% endif %}"></i></button>
+                {% if not u.is_active and can_delete %}
+                <button type="button" class="icon-btn icon-danger" title="Permanently delete account" aria-label="Delete {{ u.username }}"
+                    data-confirm-action="{% url 'user_delete' u.pk %}"
+                    data-confirm-title="Permanently delete {{ u.username }}?"
+                    data-confirm-text="Are you sure you want to permanently delete this account? Historical business records and activity logs will be kept, but the account login will be permanently removed. This action cannot be undone."
+                    data-confirm-button="Delete Account" data-confirm-tone="danger"><i data-lucide="trash-2"></i></button>
+                {% endif %}
+                {% endif %}
+                {% endif %}
+            </div></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+{% else %}
+    {% include 'predictor/partials/_empty_state.html' with icon='users-round' title='No users match' text='Try a different search or filter.' %}
+{% endif %}
+</section>
+{% endblock %}

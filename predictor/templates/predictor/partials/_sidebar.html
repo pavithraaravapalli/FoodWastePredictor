@@ -1,0 +1,73 @@
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="sidebar-head">
+        <a href="{% url 'dashboard' %}" class="brand">
+            <span class="brand-mark"><i data-lucide="leaf"></i></span>
+            <span class="brand-text">
+                <strong>FoodWastePredictor</strong>
+                <small>{{ restaurant_name }}</small>
+            </span>
+        </a>
+        <button type="button" class="icon-btn sidebar-toggle" data-sidebar-toggle aria-label="Collapse sidebar" title="Collapse sidebar">
+            <i data-lucide="panel-left-close"></i>
+        </button>
+    </div>
+
+    <nav class="nav">
+        {% for group in nav_groups %}
+            <div class="nav-group{% if group.has_active %} has-active{% endif %}" data-nav-group="{{ group.id }}">
+                <div class="nav-group-header">
+                    <button type="button" class="nav-group-toggle" data-nav-group-toggle aria-expanded="{% if group.has_active %}true{% else %}true{% endif %}" aria-controls="nav-group-{{ group.id }}">
+                        <span class="nav-group-title">{{ group.heading }}</span>
+                        <i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                    </button>
+                </div>
+                <div class="nav-group-items" id="nav-group-{{ group.id }}">
+                    {% for item in group.items %}
+                        {% if item.url_name %}
+                            <a href="{% url item.url_name %}" class="nav-item{% if item.active %} is-active{% endif %}"
+                               {% if item.active %}aria-current="page"{% endif %} title="{{ item.label }}">
+                                <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>{% if item.count %}<b class="badge-count" aria-label="{{ item.count }} waiting">{{ item.count }}</b>{% endif %}
+                            </a>
+                        {% else %}
+                            <span class="nav-item is-disabled" aria-disabled="true" title="{{ item.label }} — coming soon">
+                                <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>
+                                <em class="soon">Soon</em>
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% empty %}
+            {% for item in nav_items %}
+                {% if item.url_name %}
+                    <a href="{% url item.url_name %}" class="nav-item{% if item.active %} is-active{% endif %}"
+                       {% if item.active %}aria-current="page"{% endif %} title="{{ item.label }}">
+                        <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>{% if item.count %}<b class="badge-count" aria-label="{{ item.count }} waiting">{{ item.count }}</b>{% endif %}
+                    </a>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </nav>
+
+    <div class="sidebar-foot">
+        <a href="{% url 'settings' %}" class="profile" title="Your profile and settings">
+            <span class="avatar">{{ user_initial }}</span>
+            <span class="profile-text">
+                <strong>{% if display_name %}{{ display_name }}{% else %}Guest{% endif %}</strong>
+                <small>{% if user_role %}{{ user_role }} · {% endif %}{{ restaurant_name }}</small>
+            </span>
+        </a>
+        {% if user.is_authenticated %}
+            <form method="post" action="{% url 'logout' %}" class="logout-form">
+                {% csrf_token %}
+                <button type="submit" class="nav-item logout" title="Log out">
+                    <i data-lucide="log-out"></i><span>Log out</span>
+                </button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}" class="nav-item logout" title="Sign in">
+                <i data-lucide="log-in"></i><span>Sign in</span>
+            </a>
+        {% endif %}
+    </div>
+</aside>
